@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Heart, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -16,18 +18,77 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Placeholder for Supabase auth
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      if (isLogin) {
+        // Sign in existing user
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          toast({
+            title: "Authentication Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else if (data.user) {
+          // Check if profile exists
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", data.user.id)
+            .single();
+
+          toast({
+            title: "Welcome back!",
+            description: "Successfully signed in.",
+          });
+
+          // Redirect based on whether profile exists
+          if (profile) {
+            navigate("/discover");
+          } else {
+            navigate("/profile-setup");
+          }
+        }
+      } else {
+        // Sign up new user
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) {
+          toast({
+            title: "Sign Up Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else if (data.user) {
+          toast({
+            title: "Account Created!",
+            description: "Please complete your profile to get started.",
+          });
+          navigate("/profile-setup");
+        }
+      }
+    } catch (error) {
+      console.error("Auth error:", error);
       toast({
-        title: "Backend Required",
-        description: "Connect Lovable Cloud to enable authentication.",
+        title: "Unexpected Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
       });
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

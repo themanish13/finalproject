@@ -1,14 +1,13 @@
+
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Sparkles, PartyPopper } from "lucide-react";
+import { Heart, Sparkles, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 
-// Demo matches for UI showcase
-const demoMatches = [
-  { id: "1", name: "Sarah Williams", avatar: null, class: "CS-B", batch: "2024", matchedAt: "2 hours ago" },
-  { id: "2", name: "Emily Davis", avatar: null, class: "CS-A", batch: "2024", matchedAt: "1 day ago" },
-];
+
+// Real matches data - will be populated from Supabase
+const demoMatches: any[] = [];
 
 const Matches = () => {
   return (
@@ -78,11 +77,11 @@ const Matches = () => {
                       </p>
                     </div>
 
+
                     {/* Action */}
-                    <Button variant="glow" size="sm">
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Chat
-                    </Button>
+                    <div className="text-xs text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">
+                      It's a match! 💕
+                    </div>
                   </div>
                 </Card>
               </motion.div>

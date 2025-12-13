@@ -11,6 +11,8 @@ import Matches from "./pages/Matches";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
+
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -23,6 +25,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile-setup" element={<ProfileSetup />} />
+
           <Route path="/discover" element={<Discover />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/settings" element={<Settings />} />

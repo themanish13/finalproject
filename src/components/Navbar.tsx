@@ -1,13 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Heart, Compass, Users, Settings, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [userName, setUserName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [hintsRemaining, setHintsRemaining] = useState(3);
+
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+
+  // Load user data once and cache it
+
+  const loadUserData = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        return;
+      }
+
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("name, hints_remaining, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (profile && !error) {
+        setUserName(profile.name || "User");
+        setAvatarUrl(profile.avatar_url || "");
+        setHintsRemaining(profile.hints_remaining || 3);
+      }
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    }
+  };
 
   const navItems = [
     { path: "/discover", label: "Discover", icon: Compass },
@@ -16,6 +54,15 @@ const Navbar = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -55,10 +102,25 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary">
               <Heart className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">3 hints left</span>
+              <span className="text-sm font-medium">{hintsRemaining} hints left</span>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
-              <span className="text-sm font-bold text-primary">U</span>
+
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={userName || "User"}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <span className={`text-sm font-bold text-primary ${avatarUrl ? 'hidden' : ''}`}>
+                {userName ? getInitials(userName) : "U"}
+              </span>
             </div>
           </div>
 

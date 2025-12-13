@@ -5,10 +5,10 @@ import { Card } from "@/components/ui/card";
 interface User {
   id: string;
   name: string;
-  avatar: string | null;
-  class: string;
-  batch: string;
-  gender: string;
+  avatar_url?: string;
+  class?: string;
+  batch?: string;
+  gender?: string;
 }
 
 interface UserCardProps {
@@ -33,19 +33,38 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
       onClick={onSelect}
     >
       <div className="flex flex-col items-center text-center">
+
         {/* Avatar */}
         <div className="relative mb-4">
           <div
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
+            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 overflow-hidden ${
               isSelected
                 ? "bg-gradient-to-br from-primary to-primary/70"
                 : "bg-gradient-to-br from-secondary to-muted"
             }`}
           >
+            {user.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt={user.name}
+                className="w-full h-full object-cover"
+
+                onError={(e) => {
+                  // Fallback to initials if image fails to load
+                  const target = e.currentTarget;
+                  const nextElement = target.nextElementSibling as HTMLElement;
+                  target.style.display = 'none';
+                  if (nextElement) {
+                    nextElement.style.display = 'flex';
+                  }
+                }}
+              />
+            ) : null}
             <span
               className={`text-2xl font-bold ${
                 isSelected ? "text-primary-foreground" : "text-foreground"
               }`}
+              style={{ display: user.avatar_url ? 'none' : 'flex' }}
             >
               {initials}
             </span>
@@ -64,7 +83,7 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
         {/* Info */}
         <h3 className="font-semibold text-lg mb-1">{user.name}</h3>
         <p className="text-sm text-muted-foreground mb-3">
-          {user.class} • {user.batch}
+          {user.class || "Unknown"} • {user.batch || "Unknown"}
         </p>
 
         {/* Select indicator */}

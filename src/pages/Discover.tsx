@@ -1,29 +1,90 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Search, Filter, Sparkles } from "lucide-react";
+import { Heart, Search, Filter, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import UserCard from "@/components/UserCard";
+import { supabase } from "@/lib/supabase";
 
-// Demo users for UI showcase
-const demoUsers = [
-  { id: "1", name: "Alex Johnson", avatar: null, class: "CS-A", batch: "2024", gender: "male" },
-  { id: "2", name: "Sarah Williams", avatar: null, class: "CS-B", batch: "2024", gender: "female" },
-  { id: "3", name: "Mike Chen", avatar: null, class: "IT-A", batch: "2023", gender: "male" },
-  { id: "4", name: "Emily Davis", avatar: null, class: "CS-A", batch: "2024", gender: "female" },
-  { id: "5", name: "Chris Brown", avatar: null, class: "EC-A", batch: "2023", gender: "male" },
-  { id: "6", name: "Jessica Lee", avatar: null, class: "CS-B", batch: "2024", gender: "female" },
-  { id: "7", name: "David Kim", avatar: null, class: "IT-B", batch: "2024", gender: "male" },
-  { id: "8", name: "Amanda White", avatar: null, class: "CS-A", batch: "2023", gender: "female" },
-];
+interface User {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  class?: string;
+  batch?: string;
+  gender?: string;
+}
 
 const Discover = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCrushes, setSelectedCrushes] = useState<string[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get current user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        return;
+      }
+
+      if (user) {
+        setCurrentUserId(user.id);
+        console.log("Current user ID:", user.id);
+      }
+
+      // Get all profiles
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, name, avatar_url, class, batch, gender")
+        .not("name", "is", null);
+
+      console.log("All profiles:", profiles);
+      console.log("Profile error:", profileError);
+
+      if (profileError) {
+        console.error("Profile fetch error:", profileError);
+        return;
+      }
+
+      if (profiles && profiles.length > 0) {
+        // Filter out current user
+        const otherUsers = user 
+          ? profiles.filter(profile => profile.id !== user.id)
+          : profiles;
+
+        console.log("Filtered users (excluding current user):", otherUsers);
+        setUsers(otherUsers);
+      } else {
+        console.log("No profiles found");
+        setUsers([]);
+      }
+
+    } catch (error) {
+      console.error("Error loading data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load users. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCrushSelect = (userId: string) => {
     if (selectedCrushes.includes(userId)) {
@@ -41,11 +102,11 @@ const Discover = () => {
     }
   };
 
-  const filteredUsers = demoUsers.filter(
+  const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.class.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.batch.includes(searchQuery)
+      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.class?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.batch?.includes(searchQuery)
   );
 
   return (
@@ -96,33 +157,48 @@ const Discover = () => {
           </Button>
         </motion.div>
 
-        {/* Users Grid */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-        >
-          <AnimatePresence mode="popLayout">
-            {filteredUsers.map((user, index) => (
-              <motion.div
-                key={user.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <UserCard
-                  user={user}
-                  isSelected={selectedCrushes.includes(user.id)}
-                  onSelect={() => handleCrushSelect(user.id)}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </motion.div>
+        {/* Loading State */}
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <h3 className="text-lg font-semibold mb-2">Loading users...</h3>
+            <p className="text-muted-foreground">Fetching profiles from database</p>
+          </motion.div>
+        )}
 
-        {filteredUsers.length === 0 && (
+        {/* Users Grid */}
+        {!loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            <AnimatePresence mode="popLayout">
+              {filteredUsers.map((user, index) => (
+                <motion.div
+                  key={user.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <UserCard
+                    user={user}
+                    isSelected={selectedCrushes.includes(user.id)}
+                    onSelect={() => handleCrushSelect(user.id)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        )}
+
+        {filteredUsers.length === 0 && !loading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -132,7 +208,9 @@ const Discover = () => {
               <Search className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-semibold mb-2">No results found</h3>
-            <p className="text-muted-foreground">Try a different search term</p>
+            <p className="text-muted-foreground">
+              {users.length === 0 ? "No other users to discover yet" : "Try a different search term"}
+            </p>
           </motion.div>
         )}
 

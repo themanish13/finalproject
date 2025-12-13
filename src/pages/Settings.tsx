@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { User, Camera, GraduationCap, Users, Save, LogOut, Trash2, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,35 +11,115 @@ import { Separator } from "@/components/ui/separator";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import AvatarUpload from "@/components/AvatarUpload";
+import { supabase } from "@/lib/supabase";
 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [name, setName] = useState("Demo User");
-  const [gender, setGender] = useState("male");
-  const [className, setClassName] = useState("CS-A");
-  const [batch, setBatch] = useState("2024");
+
+  const [name, setName] = useState("");
+  const [gender, setGender] = useState("");
+  const [className, setClassName] = useState("");
+  const [batch, setBatch] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [hintsRemaining, setHintsRemaining] = useState(3);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+
+      if (userError || !user) {
+        throw new Error("No authenticated user found");
+      }
+
+      setCurrentUserId(user.id);
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profile && !error) {
+        setName(profile.name || "");
+        setGender(profile.gender || "");
+        setClassName(profile.class || "");
+        setBatch(profile.batch || "");
+        setAvatarUrl(profile.avatar_url || "");
+        setHintsRemaining(profile.hints_remaining || 3);
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error("No authenticated user found");
+      }
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          name: name,
+          gender: gender,
+          class: className,
+          batch: batch,
+        })
+        .eq("id", user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
       setIsLoading(false);
       toast({
         title: "Profile Updated",
-        description: "Your changes have been saved.",
+        description: "Your changes have been saved to the database.",
       });
-    }, 1000);
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      setIsLoading(false);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleLogout = () => {
-    toast({
-      title: "Logged Out",
-      description: "You have been signed out.",
-    });
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Logged Out",
+        description: "You have been signed out.",
+      });
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+
+
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    setAvatarUrl(newAvatarUrl);
+    // Avatar URL is already updated in the database by AvatarUpload component
   };
 
   const handleDeleteAccount = () => {
@@ -88,18 +169,15 @@ const Settings = () => {
             </h2>
 
             <form onSubmit={handleSaveProfile} className="space-y-6">
+
               {/* Avatar Upload */}
               <div className="flex justify-center">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="relative w-24 h-24 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center cursor-pointer border-2 border-dashed border-border hover:border-primary transition-colors"
-                >
-                  <span className="text-3xl font-bold text-primary">D</span>
-                  <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                    <Camera className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                </motion.div>
+
+                <AvatarUpload
+                  currentAvatarUrl={avatarUrl}
+                  onAvatarUpdate={handleAvatarUpdate}
+                  userId={currentUserId}
+                />
               </div>
 
               <div className="space-y-2">
@@ -203,7 +281,7 @@ const Settings = () => {
                 <p className="font-medium">Hints Remaining</p>
                 <p className="text-sm text-muted-foreground">Use hints to get clues about potential matches</p>
               </div>
-              <div className="text-2xl font-bold text-primary">3</div>
+              <div className="text-2xl font-bold text-primary">{hintsRemaining}</div>
             </div>
           </Card>
         </motion.div>
