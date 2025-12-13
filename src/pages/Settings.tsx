@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { User, Camera, GraduationCap, Users, Save, LogOut, Trash2, Loader2, Shield } from "lucide-react";
@@ -13,19 +14,34 @@ import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import AvatarUpload from "@/components/AvatarUpload";
 import { supabase } from "@/lib/supabase";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
+
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
   const [className, setClassName] = useState("");
   const [batch, setBatch] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [hintsRemaining, setHintsRemaining] = useState(3);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  
+  // Confirmation dialog states
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -53,8 +69,8 @@ const Settings = () => {
         setGender(profile.gender || "");
         setClassName(profile.class || "");
         setBatch(profile.batch || "");
+
         setAvatarUrl(profile.avatar_url || "");
-        setHintsRemaining(profile.hints_remaining || 3);
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -86,11 +102,16 @@ const Settings = () => {
         throw updateError;
       }
 
+
+
       setIsLoading(false);
       toast({
         title: "Profile Updated",
         description: "Your changes have been saved to the database.",
       });
+
+      // Redirect to Discover page after saving
+      navigate("/discover");
     } catch (error: any) {
       console.error("Error updating profile:", error);
       setIsLoading(false);
@@ -102,7 +123,12 @@ const Settings = () => {
     }
   };
 
-  const handleLogout = async () => {
+
+  const handleLogout = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = async () => {
     try {
       await supabase.auth.signOut();
       toast({
@@ -113,21 +139,28 @@ const Settings = () => {
     } catch (error) {
       console.error("Logout error:", error);
     }
+    setShowLogoutDialog(false);
   };
-
-
 
   const handleAvatarUpdate = (newAvatarUrl: string) => {
     setAvatarUrl(newAvatarUrl);
-    // Avatar URL is already updated in the database by AvatarUpload component
+    setTimeout(() => {
+      (window as any).refreshUserData?.();
+    }, 1000);
   };
 
   const handleDeleteAccount = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    // This feature requires backend integration
     toast({
       title: "Account Deletion",
       description: "This feature requires backend integration.",
       variant: "destructive",
     });
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -276,12 +309,13 @@ const Settings = () => {
             <p className="text-sm text-muted-foreground mb-4">
               Your crushes are 100% anonymous. No one can see who you've selected unless it's mutual.
             </p>
+
             <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
               <div>
-                <p className="font-medium">Hints Remaining</p>
-                <p className="text-sm text-muted-foreground">Use hints to get clues about potential matches</p>
+                <p className="font-medium">User ID</p>
+                <p className="text-sm text-muted-foreground">Your unique account identifier</p>
               </div>
-              <div className="text-2xl font-bold text-primary">{hintsRemaining}</div>
+              <div className="text-sm font-mono bg-secondary px-3 py-1 rounded">{currentUserId.slice(-8)}</div>
             </div>
           </Card>
         </motion.div>
@@ -319,9 +353,52 @@ const Settings = () => {
                 This will permanently delete your account, all crushes, and matches.
               </p>
             </div>
+
           </Card>
         </motion.div>
       </main>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign Out</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to sign out of your account? You'll need to sign back in to continue using the app.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmLogout}>
+              Sign Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete your account? This action cannot be undone and will permanently delete:
+              <br />• Your profile and all personal information
+              <br />• All your crushes and preferences
+              <br />• Your matches and conversation history
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteAccount}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

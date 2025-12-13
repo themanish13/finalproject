@@ -17,10 +17,14 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+
+
   // Update preview URL when currentAvatarUrl prop changes
   useEffect(() => {
     if (currentAvatarUrl) {
       setPreviewUrl(currentAvatarUrl);
+    } else {
+      setPreviewUrl(null);
     }
   }, [currentAvatarUrl]);
 
@@ -59,30 +63,88 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
     uploadAvatar(file);
   };
 
+
+
+
+
+
   const uploadAvatar = async (file: File) => {
     setIsUploading(true);
 
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/avatar.${fileExt}`;
-      const filePath = fileName;
+      // Generate unique filename for each upload to avoid caching issues
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 8);
+
+      const fileName = `avatar-${timestamp}-${randomId}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+
+      console.log('=== AVATAR UPLOAD DEBUG ===');
+      console.log('User ID:', userId);
+      console.log('File name:', fileName);
+      console.log('File path:', filePath);
+      console.log('File size:', file.size, 'bytes');
+      console.log('File type:', file.type);
+      console.log('Current avatar URL:', currentAvatarUrl);
+
+      // First, remove old avatar if exists
+      if (currentAvatarUrl) {
+        try {
+          const oldFileName = currentAvatarUrl.split('/').pop()?.split('?')[0];
+          if (oldFileName) {
+            const oldFilePath = oldFileName;
+            console.log('Removing old file:', oldFilePath);
+            
+            const { error: removeError } = await supabase.storage
+              .from('avatars')
+              .remove([oldFilePath]);
+              
+            if (removeError) {
+              console.error('Remove error:', removeError);
+            } else {
+              console.log('Old file removed successfully');
+            }
+          }
+        } catch (cleanupError) {
+          console.log('Cleanup failed (non-critical):', cleanupError);
+        }
+      }
 
       // Upload file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      console.log('Starting upload to Supabase...');
+      const { data, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
+          cacheControl: '0',
+          upsert: false // Always create new file, never overwrite
         });
 
+      console.log('Upload response:', { data, error: uploadError });
+
       if (uploadError) {
+        console.error('Upload error details:', uploadError);
         throw uploadError;
       }
+
+      console.log('Upload successful, data:', data);
+
+      // Verify the file exists by listing files
+      console.log('Verifying file exists...');
+      const { data: fileList, error: listError } = await supabase.storage
+        .from('avatars')
+        .list('', {
+          search: fileName
+        });
+        
+      console.log('File list result:', { fileList, listError });
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
+
+      console.log('Generated public URL:', publicUrl);
 
       // Update profile with new avatar URL
       const { error: updateError } = await supabase
@@ -91,13 +153,19 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
         .eq('id', userId);
 
       if (updateError) {
+        console.error('Profile update error:', updateError);
         throw updateError;
       }
 
-      // Force refresh by waiting a moment and then updating
-      setTimeout(() => {
-        onAvatarUpdate(publicUrl);
-      }, 500);
+
+      console.log('Profile updated successfully');
+      console.log('=== UPLOAD COMPLETE ===');
+      
+      // Dispatch custom event for navbar update
+      window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { avatarUrl: publicUrl } }));
+      
+      // Update the parent component immediately
+      onAvatarUpdate(publicUrl);
       
       toast({
         title: "Avatar Updated!",
@@ -118,11 +186,12 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
     }
   };
 
+
   const handleRemoveAvatar = async () => {
     try {
       setIsUploading(true);
 
-      // Remove from database
+      // Remove from database first
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: null })
@@ -132,15 +201,37 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
         throw updateError;
       }
 
-      // Remove from storage
-      const fileExt = currentAvatarUrl?.split('.').pop() || 'jpg';
-      const fileName = `${userId}/avatar.${fileExt}`;
-      
-      await supabase.storage
-        .from('avatars')
-        .remove([fileName]);
+
+      // Remove from storage - extract full path from URL
+      if (currentAvatarUrl) {
+        try {
+          const urlPath = currentAvatarUrl.split('/avatars/')[1];
+          if (urlPath) {
+            const filePath = urlPath.split('?')[0]; // Remove query params
+            console.log('Removing avatar file:', filePath);
+            
+            const { error: removeError } = await supabase.storage
+              .from('avatars')
+              .remove([filePath]);
+              
+            if (removeError) {
+              console.error('Storage removal error:', removeError);
+            } else {
+              console.log('Avatar file removed successfully');
+            }
+          }
+        } catch (removeError) {
+          console.error('Error extracting file path:', removeError);
+        }
+      }
+
 
       setPreviewUrl(null);
+      
+      // Dispatch custom event for navbar update
+      window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { avatarUrl: '' } }));
+      
+      // Update the parent component
       onAvatarUpdate('');
       
       toast({

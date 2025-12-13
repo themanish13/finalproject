@@ -153,11 +153,17 @@ const ProfileSetup = () => {
         throw error;
       }
 
+
       console.log("Profile saved successfully");
       toast({
         title: existingProfile ? "Profile Updated!" : "Profile Created!",
         description: existingProfile ? "Your profile has been updated!" : "Welcome to CrushRadar! Ready to discover your matches.",
       });
+
+      // Trigger navbar refresh to update profile data
+      setTimeout(() => {
+        (window as any).refreshUserData?.();
+      }, 1000);
 
       navigate("/discover");
     } catch (error: any) {
