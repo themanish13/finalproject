@@ -149,15 +149,30 @@ const Discover = () => {
 
         if (error) throw error;
 
+        // Check if this created a match
+        const { data: matchCheck } = await supabase
+          .from("matches")
+          .select("id")
+          .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+          .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+          .single();
 
         // Update local state
         setSelectedCrushes([...selectedCrushes, userId]);
         setExistingCrushes([...existingCrushes, userId]);
         
-        toast({
-          title: "Crush Added! 💚",
-          description: "They'll never know unless it's mutual.",
-        });
+        // Show different toast based on whether it's a match
+        if (matchCheck) {
+          toast({
+            title: "🎉 It's a Match! ❤️",
+            description: "You both like each other! Check your Matches page.",
+          });
+        } else {
+          toast({
+            title: "Crush Added! ❤️",
+            description: "They'll never know unless it's mutual.",
+          });
+        }
       }
     } catch (error: any) {
       console.error("Error saving crush:", error);
