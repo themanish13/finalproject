@@ -24,23 +24,33 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
     .join("")
     .toUpperCase();
 
+  // Soft haptic vibration when selecting a crush to build "secret" excitement
+  const handleClick = () => {
+    // Trigger haptic feedback if available (mobile devices)
+    if (navigator.vibrate) {
+      navigator.vibrate(50); // Soft 50ms vibration
+    }
+    onSelect();
+  };
+
   return (
     <Card
       variant={isSelected ? "glow" : "glass"}
-      className={`p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] ${
-        isSelected ? "ring-2 ring-primary" : "hover:border-primary/30"
+      className={`h-full min-h-[280px] p-4 cursor-pointer transition-all duration-300 hover:scale-[1.02] ${
+        isSelected ? "ring-2 ring-primary" : "hover:bg-white/10"
       }`}
-      onClick={onSelect}
+      onClick={handleClick}
     >
-      <div className="flex flex-col items-center text-center">
-
+      <div className="flex flex-col items-center text-center h-full">
         {/* Avatar */}
-        <div className="relative mb-4">
-          <div
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 overflow-hidden ${
+        <div className="relative mb-3">
+          <motion.div
+            animate={isSelected ? { scale: [1, 1.05, 1] } : {}}
+            transition={{ duration: 0.3 }}
+            className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center transition-all duration-300 overflow-hidden ${
               isSelected
-                ? "bg-gradient-to-br from-primary to-primary/70"
-                : "bg-gradient-to-br from-secondary to-muted"
+                ? "bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/30"
+                : "bg-white/10 border border-white/10"
             }`}
           >
             {user.avatar_url ? (
@@ -48,9 +58,7 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
                 src={user.avatar_url}
                 alt={user.name}
                 className="w-full h-full object-cover"
-
                 onError={(e) => {
-                  // Fallback to initials if image fails to load
                   const target = e.currentTarget;
                   const nextElement = target.nextElementSibling as HTMLElement;
                   target.style.display = 'none';
@@ -61,41 +69,43 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
               />
             ) : null}
             <span
-              className={`text-2xl font-bold ${
-                isSelected ? "text-primary-foreground" : "text-foreground"
+              className={`text-2xl md:text-3xl font-bold ${
+                isSelected ? "text-white" : "text-foreground"
               }`}
               style={{ display: user.avatar_url ? 'none' : 'flex' }}
             >
               {initials}
             </span>
-          </div>
+          </motion.div>
 
           {/* Heart indicator */}
           <motion.div
             initial={false}
-            animate={isSelected ? { scale: 1, opacity: 1 } : { scale: 0.5, opacity: 0 }}
-            className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-red-500 flex items-center justify-center shadow-lg shadow-red-500/30"
+            animate={isSelected ? { scale: [0, 1.2, 1], opacity: 1 } : { scale: 0.5, opacity: 0 }}
+            className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg"
           >
-            <Heart className="w-4 h-4 text-white fill-white" />
+            <Heart className="w-3 h-3 text-white fill-white" />
           </motion.div>
         </div>
 
         {/* Info */}
-        <h3 className="font-semibold text-lg mb-1">{user.name}</h3>
-        <p className="text-sm text-muted-foreground mb-3">
+        <h3 className="font-semibold text-base md:text-lg mb-1 truncate w-full">{user.name}</h3>
+        <p className="text-xs md:text-sm text-muted-foreground mb-2">
           {user.class || "Unknown"} • {user.batch || "Unknown"}
         </p>
 
         {/* Select indicator */}
-        <div
-          className={`text-xs font-medium px-3 py-1 rounded-full transition-all duration-300 ${
+        <motion.div
+          animate={isSelected ? { scale: [1, 1.05, 1] } : {}}
+          transition={{ duration: 0.2 }}
+          className={`text-xs font-medium px-3 py-1 rounded-full transition-all duration-300 mt-auto ${
             isSelected
               ? "bg-primary text-primary-foreground"
-              : "bg-secondary text-muted-foreground"
+              : "bg-white/5 text-muted-foreground"
           }`}
         >
-          {isSelected ? "Selected as crush 💚" : "Tap to select"}
-        </div>
+          {isSelected ? "Selected 💚" : "Tap to select"}
+        </motion.div>
       </div>
     </Card>
   );

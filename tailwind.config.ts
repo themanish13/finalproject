@@ -14,42 +14,43 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        sans: ['Roboto', 'system-ui', 'sans-serif'],
+        heading: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+        background: "#111111",
+        foreground: "#F2F5F3",
+        card: {
+          DEFAULT: "#1A221F",
+          foreground: "#F2F5F3",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "#1A221F",
+          foreground: "#F2F5F3",
         },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+        primary: {
+          DEFAULT: "#00FF85",
+          foreground: "#0B1210",
         },
+        secondary: {
+          DEFAULT: "#1A221F",
+          foreground: "#F2F5F3",
+        },
+        muted: {
+          DEFAULT: "#1A221F",
+          foreground: "#889690",
+        },
+        accent: {
+          DEFAULT: "#00FF85",
+          foreground: "#0B1210",
+        },
+        destructive: {
+          DEFAULT: "#ef4444",
+          foreground: "#F2F5F3",
+        },
+        border: "#2A3230",
+        input: "#2A3230",
+        ring: "#00FF85",
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         glow: "hsl(var(--glow-primary))",
@@ -70,6 +71,8 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "3xl": "1.5rem",
+        "4xl": "2rem",
       },
       keyframes: {
         "accordion-down": {
@@ -93,8 +96,8 @@ export default {
           "100%": { opacity: "1", transform: "scale(1)" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.3)" },
-          "50%": { boxShadow: "0 0 40px hsl(var(--primary) / 0.6)" },
+          "0%, 100%": { boxShadow: "0 0 20px rgba(0, 255, 133, 0.3)" },
+          "50%": { boxShadow: "0 0 40px rgba(0, 255, 133, 0.6)" },
         },
         "float": {
           "0%, 100%": { transform: "translateY(0px)" },
@@ -110,6 +113,11 @@ export default {
           "50%": { transform: "scale(1)" },
           "75%": { transform: "scale(1.1)" },
         },
+        "bounce-in": {
+          "0%": { transform: "scale(0)", opacity: "0" },
+          "50%": { transform: "scale(1.1)" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -121,13 +129,21 @@ export default {
         "float": "float 6s ease-in-out infinite",
         "shimmer": "shimmer 2s linear infinite",
         "heart-beat": "heart-beat 1s ease-in-out infinite",
+        "bounce-in": "bounce-in 0.5s ease-out",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-primary": "linear-gradient(135deg, hsl(145 80% 42%) 0%, hsl(160 80% 35%) 100%)",
-        "gradient-dark": "linear-gradient(180deg, hsl(0 0% 7%) 0%, hsl(0 0% 4%) 100%)",
+        "gradient-primary": "linear-gradient(135deg, #00FF85 0%, #00cc6a 100%)",
+        "gradient-dark": "linear-gradient(180deg, #1A221F 0%, #1A221F 100%)",
+        "gradient-glow": "radial-gradient(ellipse at center, rgba(0, 255, 133, 0.2) 0%, transparent 70%)",
+      },
+      boxShadow: {
+        'glow': '0 0 20px rgba(0, 255, 133, 0.3)',
+        'glow-lg': '0 0 40px rgba(0, 255, 133, 0.4)',
+        'glow-xl': '0 0 60px rgba(0, 255, 133, 0.5)',
       },
     },
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+

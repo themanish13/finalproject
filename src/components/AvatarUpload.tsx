@@ -274,7 +274,7 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
         className="relative"
       >
         <div
-          className={`w-24 h-24 rounded-full bg-secondary border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary transition-colors overflow-hidden ${
+          className={`w-24 h-24 md:w-28 md:h-28 rounded-3xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center cursor-pointer hover:border-primary transition-all overflow-hidden ${
             isUploading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
           onClick={handleAvatarClick}
@@ -294,7 +294,7 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
 
         {/* Upload Icon Overlay */}
         {!isUploading && (
-          <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg">
+          <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
             <Upload className="w-4 h-4 text-primary-foreground" />
           </div>
         )}
@@ -326,3 +326,4 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
 };
 
 export default AvatarUpload;
+

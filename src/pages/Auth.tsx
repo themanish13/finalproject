@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -92,11 +91,11 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Animated background */}
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-6 relative overflow-hidden">
+      {/* Animated gradient background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]" />
       </div>
 
       <motion.div
@@ -111,68 +110,82 @@ const Auth = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", duration: 0.5 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/5 border border-white/10 mb-4 overflow-hidden"
           >
-            <Heart className="w-8 h-8 text-primary fill-primary" />
+            <img 
+              src="/sp.jpg" 
+              alt="CrushRadar Logo" 
+              className="w-full h-full object-cover"
+            />
           </motion.div>
-          <h1 className="text-2xl font-bold">Welcome to CrushRadar</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Welcome to CrushRadar</h1>
           <p className="text-muted-foreground mt-2">
             {isLogin ? "Sign in to find your matches" : "Create your anonymous profile"}
           </p>
         </div>
 
         {/* Auth Card */}
-        <Card variant="glass" className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@university.edu"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-secondary/50 border-border focus:border-primary"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 bg-secondary/50 border-border focus:border-primary"
-                  required
-                />
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              variant="glow"
-              size="lg"
-              className="w-full"
-              disabled={isLoading}
+        <Card variant="glass" className="p-6 md:p-8">
+          <AnimatePresence mode="wait">
+            <motion.form 
+              key={isLogin ? "login" : "signup"}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+              onSubmit={handleSubmit} 
+              className="space-y-5"
             >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  {isLogin ? "Sign In" : "Create Account"}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </Button>
-          </form>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-muted-foreground">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@gmail.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-muted-foreground">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                variant="glow"
+                size="lg"
+                className="w-full btn-gradient"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    {isLogin ? "Sign In" : "Create Account"}
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            </motion.form>
+          </AnimatePresence>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
@@ -203,3 +216,4 @@ const Auth = () => {
 };
 
 export default Auth;
+

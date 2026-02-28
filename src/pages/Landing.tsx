@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, Shield, Eye, EyeOff, Sparkles, Users, Lock, Zap } from "lucide-react";
+import { Heart, Shield, Eye, EyeOff, Sparkles, Users, Lock, Zap, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
@@ -39,51 +39,63 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
-      {/* Animated background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/10 to-transparent rounded-full blur-2xl" />
-      </div>
-
       {/* Header */}
       <header className="relative z-10">
-        <nav className="container mx-auto px-6 py-6 flex items-center justify-between">
+        <nav className="container mx-auto px-4 md:px-6 py-4 md:py-6 flex items-center justify-between">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2"
+            className="flex items-center gap-3"
           >
-            <div className="relative">
-              <Heart className="w-8 h-8 text-primary fill-primary" />
-              <div className="absolute inset-0 w-8 h-8 bg-primary/30 blur-lg" />
+            <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden">
+              <img 
+                src="/sp.jpg" 
+                alt="CrushRadar Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <span className="text-xl font-bold">CrushRadar</span>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-4"
+            className="flex items-center gap-2 md:gap-3 pr-2"
           >
-            <Button variant="ghost" onClick={() => navigate("/auth")}>
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate("/auth")}
+              className="text-muted-foreground hover:text-foreground hover:bg-white/5 text-sm px-2 md:px-3"
+            >
               Login
             </Button>
-            <Button variant="glow" onClick={() => navigate("/auth")}>
+            <Button 
+              variant="glow" 
+              onClick={() => navigate("/auth")}
+              className="btn-gradient text-sm md:text-base"
+              style={{ 
+                width: '140px', 
+                padding: '8px 12px', 
+                fontSize: '14px', 
+                textAlign: 'center',
+                borderRadius: '20px' 
+              }}
+            >
               Get Started
+              <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </motion.div>
         </nav>
       </header>
 
       {/* Hero Section */}
-      <section className="relative z-10 container mx-auto px-6 pt-20 pb-32">
+      <section className="relative z-10 container mx-auto px-4 md:px-6 pt-12 md:pt-20 pb-24 md:pb-32">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-6 md:mb-8">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm text-primary font-medium">Discover mutual connections secretly</span>
             </div>
@@ -93,38 +105,43 @@ const Landing = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
+            className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 md:mb-6 leading-tight"
           >
-            Find Your Crush
+            Your crush might
             <br />
-            <span className="gradient-text">Without The Risk</span>
+            <span className="text-foreground">like you too</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-muted-foreground mb-8 md:mb-10 max-w-2xl mx-auto"
           >
             The privacy-first mutual crush detection app. Select your crushes anonymously. 
-            Only reveal when it's mutual. Zero awkwardness guaranteed.
+            Only reveal when it's mutual.
           </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4"
           >
-            <Button variant="hero" size="xl" onClick={() => navigate("/auth")} className="w-full sm:w-auto">
-              <Heart className="w-5 h-5" />
+            <Button 
+              variant="glow" 
+              size="xl" 
+              onClick={() => navigate("/auth")} 
+              className="w-full sm:w-auto btn-gradient text-base md:text-lg px-6 md:px-8"
+            >
+              <Heart className="w-5 h-5 mr-2" />
               Start Finding Matches
             </Button>
 
             <Button 
               variant="glass" 
               size="xl" 
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto text-base md:text-lg px-6 md:px-8"
               onClick={() => {
                 const howItWorksSection = document.getElementById('how-it-works');
                 if (howItWorksSection) {
@@ -132,7 +149,7 @@ const Landing = () => {
                 }
               }}
             >
-              <Eye className="w-5 h-5" />
+              <Eye className="w-5 h-5 mr-2" />
               How It Works
             </Button>
           </motion.div>
@@ -142,44 +159,33 @@ const Landing = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex items-center justify-center gap-8 mt-16"
+            className="flex items-center justify-center gap-6 md:gap-12 mt-12 md:mt-16"
           >
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary">100%</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary">100%</div>
               <div className="text-sm text-muted-foreground">Anonymous</div>
             </div>
-            <div className="w-px h-10 bg-border" />
+            <div className="w-px h-10 bg-white/10" />
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary">0</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary">0</div>
               <div className="text-sm text-muted-foreground">Data Leaks</div>
             </div>
-            <div className="w-px h-10 bg-border" />
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">∞</div>
+            <div className="w-px h-10 bg-white/10 hidden sm:block" />
+            <div className="text-center hidden sm:block">
+              <div className="text-3xl md:text-4xl font-bold text-primary">∞</div>
               <div className="text-sm text-muted-foreground">Possibilities</div>
             </div>
           </motion.div>
         </div>
-
-        {/* Floating hearts animation */}
-        <div className="absolute top-1/2 left-10 float">
-          <Heart className="w-6 h-6 text-primary/30 fill-primary/30" />
-        </div>
-        <div className="absolute top-1/3 right-16 float" style={{ animationDelay: "1s" }}>
-          <Heart className="w-8 h-8 text-primary/20 fill-primary/20" />
-        </div>
-        <div className="absolute bottom-1/4 left-1/4 float" style={{ animationDelay: "2s" }}>
-          <Heart className="w-5 h-5 text-primary/40 fill-primary/40" />
-        </div>
       </section>
 
       {/* Features Section */}
-      <section className="relative z-10 container mx-auto px-6 py-24">
+      <section className="relative z-10 container mx-auto px-4 md:px-6 py-16 md:py-24">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-12 md:mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Built for Privacy</h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
@@ -187,7 +193,7 @@ const Landing = () => {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
@@ -196,8 +202,8 @@ const Landing = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card variant="glass" className="p-6 h-full hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+              <Card variant="glass-hover" className="p-5 md:p-6 h-full">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
                   <feature.icon className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
@@ -210,12 +216,12 @@ const Landing = () => {
 
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="relative z-10 container mx-auto px-6 py-24">
+      <section id="how-it-works" className="relative z-10 container mx-auto px-4 md:px-6 py-16 md:py-24">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-12 md:mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
@@ -223,7 +229,7 @@ const Landing = () => {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {howItWorks.map((item, index) => (
             <motion.div
               key={item.step}
@@ -233,7 +239,7 @@ const Landing = () => {
               transition={{ delay: index * 0.15 }}
               className="relative text-center"
             >
-              <div className="text-6xl font-bold text-primary/10 mb-4">{item.step}</div>
+              <div className="text-6xl md:text-7xl font-bold text-primary/10 mb-2">{item.step}</div>
               <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
               <p className="text-sm text-muted-foreground">{item.description}</p>
               {index < howItWorks.length - 1 && (
@@ -245,24 +251,27 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="relative z-10 container mx-auto px-6 py-24">
+      <section className="relative z-10 container mx-auto px-4 md:px-6 py-16 md:py-24">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
         >
-          <Card variant="glow" className="p-12 text-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+          <Card className="p-8 md:p-12 text-center relative overflow-hidden">
             <div className="relative z-10">
-              <Lock className="w-12 h-12 text-primary mx-auto mb-6" />
+              <Lock className="w-10 h-10 md:w-12 md:h-12 text-primary mx-auto mb-4 md:mb-6" />
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
                 Ready to Find Your Match?
               </h2>
-              <p className="text-muted-foreground max-w-xl mx-auto mb-8">
+              <p className="text-muted-foreground max-w-xl mx-auto mb-6 md:mb-8">
                 Join thousands of users who've found their mutual crushes without the awkwardness.
               </p>
-              <Button variant="hero" size="xl" onClick={() => navigate("/auth")}>
-                <Heart className="w-5 h-5" />
+              <Button 
+                size="xl" 
+                onClick={() => navigate("/auth")}
+                className="text-base md:text-lg px-8"
+              >
+                <Heart className="w-5 h-5 mr-2" />
                 Get Started Free
               </Button>
             </div>
@@ -271,15 +280,19 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border">
-        <div className="container mx-auto px-6 py-8">
+      <footer className="relative z-10 border-t border-white/10">
+        <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Heart className="w-5 h-5 text-primary fill-primary" />
+            <div className="flex items-center gap-3">
+              <img 
+                src="/sp.jpg" 
+                alt="CrushRadar Logo" 
+                className="w-6 h-6 object-contain"
+              />
               <span className="font-semibold">CrushRadar</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 CrushRadar. Developers are in relationship though.
+              © 2025 CrushRadar. successfully developed by Manish Mainali and Anoj Dangi. All rights reserved.
             </p>
           </div>
         </div>
@@ -289,3 +302,4 @@ const Landing = () => {
 };
 
 export default Landing;
+

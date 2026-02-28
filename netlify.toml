@@ -5,7 +5,11 @@
   command = "npm run build"
   publish = "dist"
 
-# SPA fallback - redirect all routes to index.html
+[build.environment]
+  VITE_SUPABASE_URL = "https://tnjaanmkylylmtjemvtr.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuamFhbm1reWx5bG10amVtdnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MTE0OTcsImV4cCI6MjA4MTE4NzQ5N30.62sqfznkr6jNL9LXBvql4atVn4ipYStw-vaXivSKwcE"
+
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"

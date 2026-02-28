@@ -1,8 +1,6 @@
-
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, Camera, GraduationCap, Users, Save, LogOut, Trash2, Loader2, Shield } from "lucide-react";
+import { User, Camera, GraduationCap, Users, Save, LogOut, Trash2, Loader2, Shield, Bell, Moon, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import SwipeWrapper from "@/components/SwipeWrapper";
 import AvatarUpload from "@/components/AvatarUpload";
 import { supabase } from "@/lib/supabase";
 import {
@@ -164,7 +163,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navbar />
 
       {/* Animated background */}
@@ -173,18 +172,19 @@ const Settings = () => {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      <main className="relative z-10 container mx-auto px-6 py-8 max-w-2xl">
+      <SwipeWrapper>
+        <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8 max-w-2xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6 md:mb-8"
         >
           <div className="flex items-center gap-3 mb-2">
-            <User className="w-6 h-6 text-primary" />
-            <h1 className="text-3xl font-bold">Settings</h1>
+            <User className="w-5 md:w-6 text-primary" />
+            <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm md:text-base">
             Manage your profile and account preferences.
           </p>
         </motion.div>
@@ -195,17 +195,16 @@ const Settings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card variant="glass" className="p-6 mb-6">
+          <Card variant="glass" className="p-5 md:p-6 mb-4 md:mb-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <User className="w-5 h-5 text-primary" />
               Edit Profile
             </h2>
 
-            <form onSubmit={handleSaveProfile} className="space-y-6">
+            <form onSubmit={handleSaveProfile} className="space-y-5">
 
               {/* Avatar Upload */}
               <div className="flex justify-center">
-
                 <AvatarUpload
                   currentAvatarUrl={avatarUrl}
                   onAvatarUpdate={handleAvatarUpdate}
@@ -214,7 +213,7 @@ const Settings = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Display Name</Label>
+                <Label htmlFor="name" className="text-muted-foreground">Display Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
@@ -223,16 +222,16 @@ const Settings = () => {
                     placeholder="Your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="pl-10 bg-secondary/50 border-border focus:border-primary"
+                    className="pl-10 bg-white/5 border-white/10 focus:border-primary"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
+                <Label className="text-muted-foreground">Gender</Label>
                 <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger className="bg-secondary/50 border-border">
+                  <SelectTrigger className="bg-white/5 border-white/10">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -244,32 +243,30 @@ const Settings = () => {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="class">Class</Label>
+                  <Label className="text-muted-foreground">Class</Label>
                   <div className="relative">
                     <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
-                      id="class"
                       type="text"
                       placeholder="e.g. CS-A"
                       value={className}
                       onChange={(e) => setClassName(e.target.value)}
-                      className="pl-10 bg-secondary/50 border-border focus:border-primary"
+                      className="pl-10 bg-white/5 border-white/10 focus:border-primary"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="batch">Batch</Label>
+                  <Label className="text-muted-foreground">Batch</Label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
-                      id="batch"
                       type="text"
                       placeholder="e.g. 2024"
                       value={batch}
                       onChange={(e) => setBatch(e.target.value)}
-                      className="pl-10 bg-secondary/50 border-border focus:border-primary"
+                      className="pl-10 bg-white/5 border-white/10 focus:border-primary"
                     />
                   </div>
                 </div>
@@ -279,7 +276,7 @@ const Settings = () => {
                 type="submit"
                 variant="glow"
                 size="lg"
-                className="w-full"
+                className="w-full btn-gradient"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -301,7 +298,7 @@ const Settings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card variant="glass" className="p-6 mb-6">
+          <Card variant="glass" className="p-5 md:p-6 mb-4 md:mb-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
               Privacy & Security
@@ -310,12 +307,58 @@ const Settings = () => {
               Your crushes are 100% anonymous. No one can see who you've selected unless it's mutual.
             </p>
 
-            <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
               <div>
                 <p className="font-medium">User ID</p>
-                <p className="text-sm text-muted-foreground">Your unique account identifier</p>
+                <p className="text-xs text-muted-foreground">Your unique account identifier</p>
               </div>
-              <div className="text-sm font-mono bg-secondary px-3 py-1 rounded">{currentUserId.slice(-8)}</div>
+              <div className="text-xs font-mono bg-white/5 px-3 py-1.5 rounded-lg">{currentUserId.slice(-8)}</div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Notifications Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          <Card variant="glass" className="p-5 md:p-6 mb-4 md:mb-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary" />
+              Notifications
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Bell className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Match Alerts</p>
+                    <p className="text-xs text-muted-foreground">Get notified when you match</p>
+                  </div>
+                </div>
+                <div className="w-12 h-6 rounded-full bg-primary/20 relative">
+                  <div className="w-5 h-5 rounded-full bg-primary absolute right-0.5 top-0.5" />
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                    <Moon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Dark Mode</p>
+                    <p className="text-xs text-muted-foreground">Always on</p>
+                  </div>
+                </div>
+                <div className="w-12 h-6 rounded-full bg-primary relative">
+                  <div className="w-5 h-5 rounded-full bg-white absolute left-0.5 top-0.5" />
+                </div>
+              </div>
             </div>
           </Card>
         </motion.div>
@@ -326,30 +369,30 @@ const Settings = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card variant="glass" className="p-6">
+          <Card variant="glass" className="p-5 md:p-6">
             <h2 className="text-lg font-semibold mb-4">Account Actions</h2>
             
             <div className="space-y-3">
               <Button
                 variant="outline"
-                className="w-full justify-start"
+                className="w-full justify-start bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
                 onClick={handleLogout}
               >
                 <LogOut className="w-5 h-5 mr-2" />
                 Sign Out
               </Button>
 
-              <Separator />
+              <Separator className="bg-white/10" />
 
               <Button
                 variant="outline"
-                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20"
                 onClick={handleDeleteAccount}
               >
                 <Trash2 className="w-5 h-5 mr-2" />
                 Delete Account
               </Button>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground px-1">
                 This will permanently delete your account, all crushes, and matches.
               </p>
             </div>
@@ -360,7 +403,7 @@ const Settings = () => {
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-card border border-white/10">
           <AlertDialogHeader>
             <AlertDialogTitle>Sign Out</AlertDialogTitle>
             <AlertDialogDescription>
@@ -368,7 +411,7 @@ const Settings = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmLogout}>
               Sign Out
             </AlertDialogAction>
@@ -378,7 +421,7 @@ const Settings = () => {
 
       {/* Delete Account Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-card border border-white/10">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Account</AlertDialogTitle>
             <AlertDialogDescription>
@@ -389,7 +432,7 @@ const Settings = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteAccount}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -399,8 +442,10 @@ const Settings = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </SwipeWrapper>
     </div>
   );
 };
 
 export default Settings;
+
