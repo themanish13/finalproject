@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -15,7 +14,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "mask-icon.svg"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "mask-icon.svg", "pwa-192x192.jpg", "pwa-512x512.jpg"],
       manifest: {
         name: "CrushRadar",
         short_name: "CrushRadar",
@@ -28,25 +27,27 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         icons: [
           {
-            src: "pwa-192x192.png",
+            src: "pwa-192x192.jpg",
             sizes: "192x192",
-            type: "image/png",
+            type: "image/jpeg",
+            purpose: "any"
           },
           {
-            src: "pwa-512x512.png",
+            src: "pwa-512x512.jpg",
             sizes: "512x512",
-            type: "image/png",
+            type: "image/jpeg",
+            purpose: "any"
           },
           {
-            src: "pwa-512x512.png",
+            src: "pwa-512x512.jpg",
             sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
+            type: "image/jpeg",
+            purpose: "any maskable"
           },
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,jpg}"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -85,3 +86,4 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
+

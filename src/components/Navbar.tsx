@@ -198,7 +198,7 @@ const Navbar = () => {
       </nav>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-panel border-t border-white/10 safe-area-pb">
+      <div className="fixed bottom-0 left-0 right-0 z-[9999] md:hidden bg-[#0F1715] border-t border-zinc-700 safe-area-pb shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
         <div className="flex items-center justify-around h-16 px-4">
           {navItems.map((item) => (
             <button
@@ -206,11 +206,11 @@ const Navbar = () => {
               onClick={() => navigate(item.path)}
               className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
                 isActive(item.path) 
-                  ? "text-primary" 
-                  : "text-muted-foreground"
+                  ? "text-[#22C55E]" 
+                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
-              <div className={`p-2 rounded-xl ${isActive(item.path) ? "bg-primary/10" : ""}`}>
+              <div className={`p-2 rounded-xl ${isActive(item.path) ? "bg-[#22C55E]/10" : ""}`}>
                 <item.icon className="w-5 h-5" />
               </div>
               <span className="text-xs font-medium">{item.label}</span>
