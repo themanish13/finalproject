@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "mask-icon.svg", "pwa-192x192.jpg", "pwa-512x512.jpg"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
       manifest: {
         name: "CrushRadar",
         short_name: "CrushRadar",
@@ -27,46 +27,22 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         icons: [
           {
-            src: "pwa-192x192.jpg",
+            src: "pwa-192x192.png",
             sizes: "192x192",
-            type: "image/jpeg",
-            purpose: "any"
+            type: "image/png"
           },
           {
-            src: "pwa-512x512.jpg",
+            src: "pwa-512x512.png",
             sizes: "512x512",
-            type: "image/jpeg",
-            purpose: "any"
-          },
-          {
-            src: "pwa-512x512.jpg",
-            sizes: "512x512",
-            type: "image/jpeg",
-            purpose: "any maskable"
-          },
+            type: "image/png"
+          }
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,jpg}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-cache",
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
       },
     }),
-  ].filter(Boolean),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
