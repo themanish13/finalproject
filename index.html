@@ -15,7 +15,7 @@
     <meta name="msapplication-TileColor" content="#0a0a0a" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     
-    <!-- PWA & Mobile -->
+    <!-- PWA & Mobile - Full Screen App -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="CrushRadar" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -24,7 +24,12 @@
     
     <!-- Icons -->
     <link rel="icon" type="image/png" href="/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.jpg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon.png" />
     <link rel="mask-icon" href="/mask-icon.svg" color="#22c55e" />
     <link rel="manifest" href="/manifest.json" crossorigin="anonymous" />
     
@@ -51,18 +56,97 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Register service worker
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then((registration) => {
-              console.log('SW registered:', registration.scope);
-            })
-            .catch((error) => {
-              console.log('SW registration failed:', error);
-            });
-        });
-      }
+      (function() {
+        // Service Worker Registration with Update Handling
+        if ('serviceWorker' in navigator) {
+          var refreshing = false;
+          
+          // Listen for controller change (new SW activated)
+          navigator.serviceWorker.addEventListener('controllerchange', function() {
+            if (!refreshing) {
+              refreshing = true;
+              window.location.reload();
+            }
+          });
+
+          window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/service-worker.js')
+              .then(function(registration) {
+                console.log('SW registered:', registration.scope);
+                
+                // Check for updates
+                registration.addEventListener('updatefound', function() {
+                  var newWorker = registration.installing;
+                  if (newWorker) {
+                    newWorker.addEventListener('statechange', function() {
+                      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // Show update prompt
+                        showUpdateBanner();
+                      }
+                    });
+                  }
+                });
+              })
+              .catch(function(error) {
+                console.log('SW registration failed:', error);
+              });
+          });
+        }
+
+        function showUpdateBanner() {
+          // Remove existing banner if any
+          var existing = document.getElementById('sw-update-banner');
+          if (existing) existing.remove();
+
+          var banner = document.createElement('div');
+          banner.id = 'sw-update-banner';
+          banner.innerHTML = '' +
+            '<style>' +
+            '#sw-update-banner {' +
+            '  position: fixed;' +
+            '  bottom: 100px;' +
+            '  left: 50%;' +
+            '  transform: translateX(-50%);' +
+            '  background: linear-gradient(135deg, #22C55E 0%, #16a34a 100%);' +
+            '  color: white;' +
+            '  padding: 14px 24px;' +
+            '  border-radius: 16px;' +
+            '  font-family: system-ui, -apple-system, sans-serif;' +
+            '  font-size: 15px;' +
+            '  font-weight: 600;' +
+            '  box-shadow: 0 8px 32px rgba(34, 197, 94, 0.4);' +
+            '  z-index: 999999;' +
+            '  display: flex;' +
+            '  align-items: center;' +
+            '  gap: 16px;' +
+            '}' +
+            '#sw-update-banner button {' +
+            '  background: white;' +
+            '  color: #16a34a;' +
+            '  border: none;' +
+            '  padding: 8px 18px;' +
+            '  border-radius: 8px;' +
+            '  font-weight: 700;' +
+            '  cursor: pointer;' +
+            '  font-size: 14px;' +
+            '}' +
+            '#sw-update-banner button:hover {' +
+            '  transform: scale(1.05);' +
+            '}' +
+            '</style>' +
+            '<span>New version available!</span>' +
+            '<button id="sw-update-btn">Update Now</button>';
+          document.body.appendChild(banner);
+          
+          document.getElementById('sw-update-btn').addEventListener('click', function() {
+            window.location.reload();
+          });
+          
+          // Auto dismiss after 15 seconds
+          setTimeout(function() { banner.remove(); }, 15000);
+        }
+      })();
     </script>
   </body>
 </html>
+
