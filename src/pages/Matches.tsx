@@ -166,7 +166,7 @@ const Matches = () => {
               >
                 <Card 
                   variant="glow" 
-                  className="p-5 md:p-6 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300"
+                  className="p-5 md:p-6 hover:border-primary/40 transition-all duration-300"
                 >
                   <div className="flex flex-col items-center text-center">
                     {/* Avatar with glow effect */}
@@ -175,7 +175,7 @@ const Matches = () => {
                       whileHover={{ scale: 1.05 }}
                       transition={{ type: "spring", stiffness: 300 }}
                     >
-                      <div className={`w-20 h-20 md:w-24 md:h-24 rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-300 bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/30`}>
+                      <div className={`w-20 h-20 md:w-24 md:h-24 rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-300 bg-gradient-to-br from-primary to-primary/70`}>
                         {match.avatar_url ? (
                           <img
                             src={match.avatar_url}
@@ -191,7 +191,7 @@ const Matches = () => {
                       
                       {/* Heart badge */}
                       <motion.div
-                        className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg"
+                        className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
                       >
                         <Heart className="w-4 h-4 text-white fill-white" />
                       </motion.div>

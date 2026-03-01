@@ -30,7 +30,7 @@ export default {
         },
         primary: {
           DEFAULT: "#00FF85",
-          foreground: "#0B1210",
+          foreground: "#FFFFFF",
         },
         secondary: {
           DEFAULT: "#1A221F",
@@ -42,7 +42,7 @@ export default {
         },
         accent: {
           DEFAULT: "#00FF85",
-          foreground: "#0B1210",
+          foreground: "#FFFFFF",
         },
         destructive: {
           DEFAULT: "#ef4444",
@@ -51,6 +51,10 @@ export default {
         border: "#2A3230",
         input: "#2A3230",
         ring: "#00FF85",
+        heart: {
+          DEFAULT: "#FF0040",
+          foreground: "#FFFFFF",
+        },
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         glow: "hsl(var(--glow-primary))",
@@ -95,10 +99,6 @@ export default {
           "0%": { opacity: "0", transform: "scale(0.9)" },
           "100%": { opacity: "1", transform: "scale(1)" },
         },
-        "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(0, 255, 133, 0.3)" },
-          "50%": { boxShadow: "0 0 40px rgba(0, 255, 133, 0.6)" },
-        },
         "float": {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-20px)" },
@@ -133,17 +133,15 @@ export default {
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-primary": "linear-gradient(135deg, #00FF85 0%, #00cc6a 100%)",
+        "gradient-primary": "linear-gradient(135deg, #00FF85 0%, #00CC6A 100%)",
         "gradient-dark": "linear-gradient(180deg, #1A221F 0%, #1A221F 100%)",
-        "gradient-glow": "radial-gradient(ellipse at center, rgba(0, 255, 133, 0.2) 0%, transparent 70%)",
+        "gradient-glow": "none",
       },
       boxShadow: {
-        'glow': '0 0 20px rgba(0, 255, 133, 0.3)',
-        'glow-lg': '0 0 40px rgba(0, 255, 133, 0.4)',
-        'glow-xl': '0 0 60px rgba(0, 255, 133, 0.5)',
+        'glow': 'none',
+        'glow-lg': 'none',
       },
     },
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
-

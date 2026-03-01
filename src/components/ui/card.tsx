@@ -9,10 +9,10 @@ const Card = React.forwardRef<
   }
 >(({ className, variant = "default", ...props }, ref) => {
   const variants = {
-    default: "bg-card text-card-foreground border-2 border-border/30 shadow-sm",
-    glass: "bg-white/5 backdrop-blur-xl border border-white/10 shadow-lg",
-    "glass-hover": "bg-white/5 backdrop-blur-xl border border-white/10 shadow-lg hover:bg-white/10 hover:border-white/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300",
-    glow: "bg-card text-card-foreground border-2 border-primary/30 shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/15 hover:border-primary/40 transition-all duration-300",
+    default: "bg-card text-card-foreground border-2 border-border/30",
+    glass: "bg-white/5 backdrop-blur-xl border border-white/10",
+    "glass-hover": "bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300",
+    glow: "bg-card text-card-foreground border-2 border-primary/30 hover:border-primary/40 transition-all duration-300",
   };
 
   return (

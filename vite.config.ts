@@ -15,11 +15,13 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png"],
+      srcDir: "src",
+      filename: "service-worker.ts",
       manifest: {
         name: "CrushRadar",
         short_name: "CrushRadar",
         description: "Discover mutual crushes anonymously and safely",
-        theme_color: "#0a0a0a",
+        theme_color: "#00FF85",
         background_color: "#0a0a0a",
         display: "standalone",
         orientation: "portrait",
@@ -62,4 +64,3 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
-

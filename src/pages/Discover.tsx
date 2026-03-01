@@ -260,7 +260,7 @@ const Discover = () => {
                 onClick={() => setActiveFilter(filter.value)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                   activeFilter === filter.value
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20"
                 }`}
               >

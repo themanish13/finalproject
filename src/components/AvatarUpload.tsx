@@ -294,7 +294,7 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, userId }: AvatarUpload
 
         {/* Upload Icon Overlay */}
         {!isUploading && (
-          <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+          <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl bg-primary flex items-center justify-center">
             <Upload className="w-4 h-4 text-primary-foreground" />
           </div>
         )}

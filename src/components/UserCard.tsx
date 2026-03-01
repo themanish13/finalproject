@@ -49,7 +49,7 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
             transition={{ duration: 0.3 }}
             className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center transition-all duration-300 overflow-hidden ${
               isSelected
-                ? "bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/30"
+                ? "bg-gradient-to-br from-primary to-primary/70"
                 : "bg-white/10 border border-white/10"
             }`}
           >
@@ -82,7 +82,7 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
           <motion.div
             initial={false}
             animate={isSelected ? { scale: [0, 1.2, 1], opacity: 1 } : { scale: 0.5, opacity: 0 }}
-            className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-lg"
+            className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center"
           >
             <Heart className="w-3 h-3 text-white fill-white" />
           </motion.div>
@@ -104,7 +104,7 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
               : "bg-white/5 text-muted-foreground"
           }`}
         >
-          {isSelected ? "Selected 💚" : "Tap to select"}
+          {isSelected ? "Selected ❤️" : "Tap to select"}
         </motion.div>
       </div>
     </Card>
