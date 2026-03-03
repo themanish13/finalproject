@@ -18,24 +18,6 @@ interface User {
   gender?: string;
 }
 
-// Extract year from batch string (handles "2025", "4th sem - 2025", "2025 batch", etc.)
-const extractYear = (batch: string | undefined): string | null => {
-  if (!batch) return null;
-  const yearMatch = batch.match(/\b(202[5-9]|203[0-9])\b/);
-  return yearMatch ? yearMatch[1] : null;
-};
-
-const filterOptions = [
-  { value: "all", label: "All Years" },
-  { value: "2025", label: "25" },
-  { value: "2024", label: "24" },
-  { value: "2023", label: "23" },
-  { value: "2022", label: "22" },
-  { value: "2021", label: "21" },
-  { value: "2020", label: "20" },
-  { value: "2019", label: "19" },
-];
-
 const Discover = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -44,7 +26,6 @@ const Discover = () => {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [existingCrushes, setExistingCrushes] = useState<string[]>([]);
-  const [activeFilter, setActiveFilter] = useState("all");
 
   useEffect(() => {
     loadData();
@@ -178,23 +159,17 @@ const Discover = () => {
     }
   };
 
-  // Combined filter: search + year filter
+  // Search filter only
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
-      // Search filter
       const searchLower = searchQuery.toLowerCase().trim();
-      const matchesSearch = !searchLower || 
+      if (!searchLower) return true;
+      return 
         user.name?.toLowerCase().includes(searchLower) ||
         user.class?.toLowerCase().includes(searchLower) ||
         user.batch?.toLowerCase().includes(searchLower);
-
-      // Year filter
-      const userYear = extractYear(user.batch);
-      const matchesYear = activeFilter === "all" || userYear === activeFilter;
-
-      return matchesSearch && matchesYear;
     });
-  }, [users, searchQuery, activeFilter]);
+  }, [users, searchQuery]);
 
   const clearSearch = () => setSearchQuery("");
 
@@ -252,36 +227,18 @@ const Discover = () => {
             )}
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-            {filterOptions.map((filter) => (
-              <button
-                key={filter.value}
-                onClick={() => setActiveFilter(filter.value)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                  activeFilter === filter.value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-white/5 border border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20"
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-
           {/* Active filters indicator */}
-          {(searchQuery || activeFilter !== "all") && (
+          {searchQuery && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>
                 Showing {filteredUsers.length} {filteredUsers.length === 1 ? 'result' : 'results'}
                 {searchQuery && ` for "${searchQuery}"`}
-                {activeFilter !== "all" && ` in ${activeFilter}`}
               </span>
               <button 
-                onClick={() => { clearSearch(); setActiveFilter("all"); }}
+                onClick={clearSearch}
                 className="text-primary hover:text-primary/80 font-medium"
               >
-                Clear all
+                Clear
               </button>
             </div>
           )}
@@ -308,7 +265,7 @@ const Discover = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="grid grid-cols-3 md:grid-cols-4 gap-3"
+            className="grid grid-cols-2 md:grid-cols-2 gap-2"
           >
             <AnimatePresence mode="popLayout">
               {filteredUsers.map((user, index) => (
@@ -346,14 +303,14 @@ const Discover = () => {
             <p className="text-muted-foreground text-sm mb-4">
               {users.length === 0 
                 ? "No other users to discover yet" 
-                : "Try adjusting your search or filter"}
+                : "Try adjusting your search"}
             </p>
-            {(searchQuery || activeFilter !== "all") && (
+            {searchQuery && (
               <button
-                onClick={() => { clearSearch(); setActiveFilter("all"); }}
+                onClick={clearSearch}
                 className="text-primary text-sm font-medium hover:underline"
               >
-                Clear filters
+                Clear search
               </button>
             )}
           </motion.div>

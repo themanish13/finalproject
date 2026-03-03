@@ -21,8 +21,8 @@ export default {
         background: "#111111",
         foreground: "#F2F5F3",
         primary: {
-          DEFAULT: "#00FF85",
-          foreground: "#000000",
+          DEFAULT: "#228B22",
+          foreground: "#FFFFFF",
         },
         card: {
           DEFAULT: "#1A221F",
@@ -41,8 +41,8 @@ export default {
           foreground: "#889690",
         },
         accent: {
-          DEFAULT: "#00FF85",
-          foreground: "#000000",
+          DEFAULT: "#228B22",
+          foreground: "#FFFFFF",
         },
         destructive: {
           DEFAULT: "#ef4444",
@@ -50,7 +50,7 @@ export default {
         },
         border: "#2A3230",
         input: "#2A3230",
-        ring: "#00FF85",
+        ring: "#228B22",
         heart: {
           DEFAULT: "#FF0040",
           foreground: "#FFFFFF",
@@ -133,7 +133,7 @@ export default {
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-primary": "linear-gradient(135deg, #00FF85 0%, #00CC6A 100%)",
+        "gradient-primary": "linear-gradient(135deg, #228B22 0%, #1a6b1a 100%)",
         "gradient-dark": "linear-gradient(180deg, #1A221F 0%, #1A221F 100%)",
         "gradient-glow": "none",
       },
