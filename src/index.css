@@ -45,7 +45,7 @@
     --warning: 45 100% 50%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(151 100% 50%) 0%, hsl(140 100% 45%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(151, 100%, 49%) 0%, hsl(140 100% 45%) 100%);
     --gradient-dark: linear-gradient(180deg, hsl(0 0% 7%) 0%, hsl(0 0% 4%) 100%);
     --gradient-glow: none;
 
@@ -57,6 +57,65 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 18%;
     --sidebar-ring: 151 100% 50%;
+  }
+
+  /* Light Mode - User can toggle this */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+
+    --primary: 192 100% 50%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 30%;
+
+    --accent: 192 100% 50%;
+    --accent-foreground: 0 0% 0%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 85%;
+    --input: 0 0% 85%;
+    --ring: 192 100% 50%;
+    --heart: 345 100% 50%;
+
+    --glow-primary: 192 100% 50%;
+    --glass: 0 0% 0% / 0.03;
+    --glass-border: 0 0% 0% / 0.1;
+    --success: 142 71% 45%;
+    --warning: 45 100% 50%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(192, 100%, 50%) 0%, hsl(192, 100%, 40%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
+    --gradient-glow: none;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-primary: 192 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 95%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 0 0% 85%;
+    --sidebar-ring: 192 100% 50%;
+  }
+
+  /* Light mode - no transitions for instant change */
+  .light *,
+  .light *::before,
+  .light *::after {
+    transition: none !important;
+    animation: none !important;
   }
 
   .dark {
@@ -101,6 +160,10 @@
 @layer components {
   .glass-card {
     @apply bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl;
+  }
+
+  .solid-navbar {
+    @apply fixed top-0 w-full bg-background border-b border-border z-50;
   }
 
   .lucide-heart {

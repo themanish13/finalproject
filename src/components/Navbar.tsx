@@ -127,7 +127,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 glass-panel border-b border-white/10">
+      <nav className="sticky top-0 z-50" style={{ backgroundColor: '#121212' }}>
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
@@ -144,7 +144,7 @@ const Navbar = () => {
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-lg md:text-xl font-bold">CrushRadar</span>
+              <span className="text-lg md:text-xl font-bold" style={{ color: '#fff' }}>CrushRadar</span>
             </motion.div>
 
             {/* Desktop Navigation */}
@@ -155,7 +155,10 @@ const Navbar = () => {
                   variant={isActive(item.path) ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => navigate(item.path)}
-                  className={`${isActive(item.path) ? "bg-white/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+                  className={isActive(item.path) 
+                    ? "bg-white/10 text-primary" 
+                    : "text-white/70 hover:text-white hover:bg-white/5"
+                  }
                 >
                   <item.icon className="w-4 h-4 mr-2" />
                   {item.label}
@@ -167,7 +170,7 @@ const Navbar = () => {
             <div className="hidden md:flex items-center gap-4">
               <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/5 border border-white/10">
                 <Heart className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium">{userName}</span>
+                <span className="text-sm font-medium" style={{ color: '#fff' }}>{userName}</span>
               </div>
 
               <div 
@@ -198,7 +201,7 @@ const Navbar = () => {
       </nav>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-[9999] md:hidden bg-[#0F1715] border-t border-zinc-700 safe-area-pb shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
+      <div className="fixed bottom-0 left-0 right-0 z-[9999] md:hidden" style={{ backgroundColor: '#121212' }}>
         <div className="flex items-center justify-around h-16 px-4">
           {navItems.map((item) => (
             <button

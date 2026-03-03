@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, Camera, GraduationCap, Users, Save, LogOut, Trash2, Loader2, Shield, Bell, Moon, Globe } from "lucide-react";
+import { User, GraduationCap, Users, Save, LogOut, Trash2, Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,6 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
@@ -313,52 +312,6 @@ const Settings = () => {
                 <p className="text-xs text-muted-foreground">Your unique account identifier</p>
               </div>
               <div className="text-xs font-mono bg-white/5 px-3 py-1.5 rounded-lg">{currentUserId.slice(-8)}</div>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Notifications Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-        >
-          <Card variant="glass" className="p-5 md:p-6 mb-4 md:mb-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-primary" />
-              Notifications
-            </h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Bell className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Match Alerts</p>
-                    <p className="text-xs text-muted-foreground">Get notified when you match</p>
-                  </div>
-                </div>
-                <div className="w-12 h-6 rounded-full bg-primary/20 relative">
-                  <div className="w-5 h-5 rounded-full bg-primary absolute right-0.5 top-0.5" />
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                    <Moon className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Dark Mode</p>
-                    <p className="text-xs text-muted-foreground">Always on</p>
-                  </div>
-                </div>
-                <div className="w-12 h-6 rounded-full bg-primary relative">
-                  <div className="w-5 h-5 rounded-full bg-white absolute left-0.5 top-0.5" />
-                </div>
-              </div>
             </div>
           </Card>
         </motion.div>
