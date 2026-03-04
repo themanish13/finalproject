@@ -4,10 +4,9 @@ import { Heart, Search, Sparkles, Loader2, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar";
 import UserCard from "@/components/UserCard";
-import SwipeWrapper from "@/components/SwipeWrapper";
 import { supabase } from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
 
 interface User {
   id: string;
@@ -18,14 +17,190 @@ interface User {
   gender?: string;
 }
 
+// Match reveal animation component
+const MatchReveal = ({ 
+  isOpen, 
+  onClose, 
+  matchedUserName, 
+  matchedUserAvatar 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  matchedUserName: string;
+  matchedUserAvatar?: string;
+}) => {
+  useEffect(() => {
+    if (isOpen && navigator.vibrate) {
+      // Strong haptic for match reveal
+      navigator.vibrate([100, 50, 100, 50, 200]);
+    }
+  }, [isOpen]);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+        >
+          {/* Background overlay */}
+          <motion.div 
+            initial={{ backgroundColor: "rgba(0,0,0,0)" }}
+            animate={{ backgroundColor: "rgba(0,0,0,0.9)" }}
+            exit={{ backgroundColor: "rgba(0,0,0,0)" }}
+            className="absolute inset-0"
+            onClick={onClose}
+          />
+          
+          {/* Animated hearts background */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {[...Array(12)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ 
+                  x: Math.random() * window.innerWidth,
+                  y: window.innerHeight + 50,
+                  scale: 0,
+                  opacity: 0
+                }}
+                animate={{ 
+                  y: -50,
+                  scale: [0, 1, 0.5],
+                  opacity: [0, 1, 0]
+                }}
+                transition={{ 
+                  duration: 3 + Math.random() * 2,
+                  repeat: Infinity,
+                  delay: Math.random() * 2,
+                  ease: "easeOut"
+                }}
+                className="absolute"
+                style={{ left: `${Math.random() * 100}%` }}
+              >
+                <Heart className="w-6 h-6 text-[#FF2D55] fill-[#FF2D55] opacity-50" />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Match content */}
+          <motion.div
+            initial={{ scale: 0, y: 50 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0, y: 50 }}
+            transition={{ type: "spring", damping: 15, stiffness: 200 }}
+            className="relative z-10 text-center px-6"
+          >
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mb-6"
+            >
+              <div className="text-6xl mb-2">🎉</div>
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#FF2D55] to-[#FF6B8A] bg-clip-text text-transparent">
+                IT'S A MATCH!
+              </h2>
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-lg text-muted-foreground mb-8"
+            >
+              You and <span className="text-foreground font-semibold">{matchedUserName}</span> liked each other!
+            </motion.p>
+
+            {/* Avatar with glow */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring" }}
+              className="mb-8"
+            >
+              <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-br from-primary-light to-primary p-1 shadow-[0_0_40px_rgba(46,125,87,0.5)]">
+                <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
+                  {matchedUserAvatar ? (
+                    <img src={matchedUserAvatar} alt={matchedUserName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-5xl font-bold text-white">
+                      {matchedUserName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              onClick={onClose}
+              className="px-8 py-3 bg-gradient-to-r from-primary-light to-primary text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+            >
+              Start Chatting 💬
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+// Crush limit indicator component
+const CrushLimitIndicator = ({ count, max = 5 }: { count: number; max?: number }) => {
+  const percentage = (count / max) * 100;
+  const isFull = count >= max;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-3"
+    >
+      <div className="flex items-center gap-2">
+        <Heart className={`w-5 h-5 ${isFull ? 'text-[#FF2D55]' : 'text-primary'}`} />
+        <span className={`text-sm ${isFull ? 'text-[#FF2D55]' : 'text-muted-foreground'}`}>
+          <span className="font-semibold">{count}</span>/{max} selected
+        </span>
+      </div>
+      {/* Progress bar */}
+      <div className="flex-1 max-w-[100px] h-1.5 bg-secondary rounded-full overflow-hidden">
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          className={`h-full rounded-full ${isFull ? 'bg-[#FF2D55]' : 'bg-gradient-to-r from-primary-light to-primary'}`}
+        />
+      </div>
+      {isFull && (
+        <span className="text-xs text-[#FF2D55] font-medium">Limit reached!</span>
+      )}
+    </motion.div>
+  );
+};
+
+const MAX_CRUSHES = 5;
+
 const Discover = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCrushes, setSelectedCrushes] = useState<string[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [existingCrushes, setExistingCrushes] = useState<string[]>([]);
+  
+  // Match reveal state
+  const [showMatchReveal, setShowMatchReveal] = useState(false);
+  const [matchedUser, setMatchedUser] = useState<{ name: string; avatar_url?: string } | null>(null);
+  
+  // Someone has a crush on you notification
+  const [showCrushNotification, setShowCrushNotification] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -76,6 +251,21 @@ const Discover = () => {
           setExistingCrushes(crushIds);
           setSelectedCrushes(crushIds);
         }
+        
+        // Check if someone has a crush on the current user
+        const { data: crushOnMe } = await supabase
+          .from("crushes")
+          .select("sender_id, receiver_id")
+          .eq("receiver_id", user.id)
+          .limit(1);
+        
+        if (crushOnMe && crushOnMe.length > 0) {
+          // Show notification after a delay for emotional impact
+          setTimeout(() => {
+            setShowCrushNotification(true);
+            setTimeout(() => setShowCrushNotification(false), 5000);
+          }, 3000);
+        }
       }
 
     } catch (error) {
@@ -97,6 +287,15 @@ const Discover = () => {
           title: "Error",
           description: "You must be logged in to select crushes.",
           variant: "destructive",
+        });
+        return;
+      }
+
+      // Check crush limit
+      if (!selectedCrushes.includes(userId) && selectedCrushes.length >= MAX_CRUSHES) {
+        toast({
+          title: "Limit Reached 😔",
+          description: `You can only select up to ${MAX_CRUSHES} crushes. Remove one to add another.`,
         });
         return;
       }
@@ -127,17 +326,28 @@ const Discover = () => {
 
         if (error) throw error;
 
+        // Check for mutual match
         const { data: matchCheck } = await supabase
-          .from("matches")
-          .select("id")
-          .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-          .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+          .from("crushes")
+          .select("id, sender_id")
+          .eq("sender_id", userId)
+          .eq("receiver_id", currentUserId)
           .single();
 
         setSelectedCrushes([...selectedCrushes, userId]);
         setExistingCrushes([...existingCrushes, userId]);
         
         if (matchCheck) {
+          // It's a match! Show the match reveal animation
+          const matchedUserData = users.find(u => u.id === userId);
+          if (matchedUserData) {
+            setMatchedUser({
+              name: matchedUserData.name,
+              avatar_url: matchedUserData.avatar_url
+            });
+            setShowMatchReveal(true);
+          }
+          
           toast({
             title: "🎉 It's a Match! ❤️",
             description: "You both like each other! Check your Matches page.",
@@ -159,15 +369,40 @@ const Discover = () => {
     }
   };
 
-  // Search filter only
+  // Enhanced search filter - handles name, class (faculty), and batch (year)
   const filteredUsers = useMemo(() => {
+    const searchTerms = searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    
+    if (searchTerms.length === 0) return users;
+    
     return users.filter((user) => {
-      const searchLower = searchQuery.toLowerCase().trim();
-      if (!searchLower) return true;
-      return 
-        user.name?.toLowerCase().includes(searchLower) ||
-        user.class?.toLowerCase().includes(searchLower) ||
-        user.batch?.toLowerCase().includes(searchLower);
+      // Create searchable text from all relevant fields
+      const searchableText = [
+        user.name?.toLowerCase() || '',
+        user.class?.toLowerCase() || '',
+        user.batch?.toLowerCase() || '',
+        // Also search for common variations
+        user.batch ? `${user.batch} batch` : '',
+        user.batch ? `batch ${user.batch}` : '',
+        user.class ? `${user.class} year` : '',
+      ].join(' ');
+      
+      // Check if any search term matches
+      return searchTerms.some(term => {
+        // Check for exact matches in individual fields
+        const nameMatch = user.name?.toLowerCase().includes(term);
+        const classMatch = user.class?.toLowerCase().includes(term);
+        const batchMatch = user.batch?.toLowerCase().includes(term);
+        
+        // Check for batch year variations (e.g., "2021" matches "2021")
+        // Also check if user types "batch 2021" or "2021 batch"
+        const batchYearMatch = 
+          user.batch?.includes(term) || 
+          (term === 'batch' && user.batch) ||
+          (user.batch && term.startsWith(user.batch));
+        
+        return nameMatch || classMatch || batchMatch || batchYearMatch;
+      });
     });
   }, [users, searchQuery]);
 
@@ -175,16 +410,7 @@ const Discover = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Navbar />
-
-      {/* Animated gradient background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      </div>
-
-      <SwipeWrapper>
-        <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8">
+      <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -212,10 +438,10 @@ const Discover = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search by name, class, or batch..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10 bg-white/5 border-white/10 focus:border-primary"
+              className="pl-10 pr-10 bg-card border-border focus:border-primary focus:ring-1 focus:ring-primary"
             />
             {searchQuery && (
               <button 
@@ -251,7 +477,7 @@ const Discover = () => {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-lg bg-secondary border border-border flex items-center justify-center mx-auto mb-4">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Loading users...</h3>
@@ -265,7 +491,7 @@ const Discover = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="grid grid-cols-2 md:grid-cols-2 gap-2"
+            className="grid grid-cols-2 lg:grid-cols-3 gap-2"
           >
             <AnimatePresence mode="popLayout">
               {filteredUsers.map((user, index) => (
@@ -294,7 +520,7 @@ const Discover = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-12"
           >
-            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-lg bg-secondary border border-border flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-semibold mb-2">
@@ -316,7 +542,7 @@ const Discover = () => {
           </motion.div>
         )}
 
-        {/* Bottom info */}
+        {/* Bottom info with Crush Limit */}
         {filteredUsers.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -324,18 +550,43 @@ const Discover = () => {
             transition={{ delay: 0.3 }}
             className="mt-6 md:mt-8 text-center"
           >
-            <Card variant="glass" className="inline-flex items-center gap-3 px-5 py-3">
-              <Heart className="w-5 h-5 text-primary" />
-              <span className="text-sm text-muted-foreground">
-                You've selected <span className="text-primary font-semibold">{selectedCrushes.length}</span> crushes
-              </span>
+            <Card variant="premium" className="inline-flex items-center gap-3 px-5 py-3">
+              <CrushLimitIndicator count={selectedCrushes.length} max={MAX_CRUSHES} />
             </Card>
           </motion.div>
         )}
         </main>
-      </SwipeWrapper>
+
+      {/* Someone has a crush on you notification */}
+      <AnimatePresence>
+        {showCrushNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 50, x: "-50%" }}
+            className="fixed bottom-24 left-1/2 z-[100] px-4 py-3 bg-card border border-primary/30 rounded-xl shadow-lg flex items-center gap-3"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center">
+              <Heart className="w-4 h-4 text-white fill-white" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Someone has a crush on you 👀</p>
+              <p className="text-xs text-muted-foreground">Check your matches!</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Match Reveal Animation */}
+      <MatchReveal
+        isOpen={showMatchReveal}
+        onClose={() => setShowMatchReveal(false)}
+        matchedUserName={matchedUser?.name || ""}
+        matchedUserAvatar={matchedUser?.avatar_url}
+      />
     </div>
   );
 };
 
 export default Discover;
+

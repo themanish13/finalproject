@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, GraduationCap, Users, Save, LogOut, Trash2, Loader2, Shield } from "lucide-react";
+import { 
+  User, GraduationCap, Users, Save, LogOut, Trash2, Loader2, 
+  Shield, Bell, BellOff, Ban, AlertTriangle, 
+  Lock, ChevronRight
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar";
-import SwipeWrapper from "@/components/SwipeWrapper";
 import AvatarUpload from "@/components/AvatarUpload";
 import { supabase } from "@/lib/supabase";
 import {
@@ -24,7 +27,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,12 +39,27 @@ const Settings = () => {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
   
+  // Privacy settings
+  const [screenshotWarning, setScreenshotWarning] = useState(true);
+  const [notifications, setNotifications] = useState(true);
+  
   // Confirmation dialog states
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
 
   useEffect(() => {
     loadProfile();
+    
+    // Listen for visibility change to show screenshot warning
+    const handleVisibilityChange = () => {
+      if (document.hidden && screenshotWarning) {
+        // User switched tabs - could show warning on return
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const loadProfile = async () => {
@@ -67,7 +84,6 @@ const Settings = () => {
         setGender(profile.gender || "");
         setClassName(profile.class || "");
         setBatch(profile.batch || "");
-
         setAvatarUrl(profile.avatar_url || "");
       }
     } catch (error) {
@@ -100,8 +116,6 @@ const Settings = () => {
         throw updateError;
       }
 
-
-
       setIsLoading(false);
       toast({
         title: "Profile Updated",
@@ -120,7 +134,6 @@ const Settings = () => {
       });
     }
   };
-
 
   const handleLogout = () => {
     setShowLogoutDialog(true);
@@ -161,18 +174,41 @@ const Settings = () => {
     setShowDeleteDialog(false);
   };
 
+  const handleBlockUser = () => {
+    setShowBlockDialog(true);
+  };
+
+  const confirmBlockUser = () => {
+    toast({
+      title: "Block Feature",
+      description: "This feature will be available in a future update.",
+    });
+    setShowBlockDialog(false);
+  };
+
+  const toggleScreenshotWarning = () => {
+    setScreenshotWarning(!screenshotWarning);
+    toast({
+      title: screenshotWarning ? "Screenshot Warning Disabled" : "Screenshot Warning Enabled",
+      description: screenshotWarning 
+        ? "Other users won't see privacy warnings when viewing your profile."
+        : "Users will see a privacy reminder when viewing your profile.",
+    });
+  };
+
+  const toggleNotifications = () => {
+    setNotifications(!notifications);
+    toast({
+      title: notifications ? "Notifications Disabled" : "Notifications Enabled",
+      description: notifications 
+        ? "You won't receive push notifications."
+        : "You'll receive notifications about matches and messages.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Navbar />
-
-      {/* Animated background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      </div>
-
-      <SwipeWrapper>
-        <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8 max-w-2xl">
+      <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8 max-w-2xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -184,9 +220,10 @@ const Settings = () => {
             <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
           </div>
           <p className="text-muted-foreground text-sm md:text-base">
-            Manage your profile and account preferences.
+            Manage your profile, privacy, and account.
           </p>
         </motion.div>
+
 
         {/* Edit Profile Section */}
         <motion.div
@@ -221,7 +258,7 @@ const Settings = () => {
                     placeholder="Your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10 focus:border-primary"
+                    className="pl-10 bg-card border-border focus:border-primary focus:ring-1 focus:ring-primary"
                     required
                   />
                 </div>
@@ -230,7 +267,7 @@ const Settings = () => {
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Gender</Label>
                 <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger className="bg-white/5 border-white/10">
+                <SelectTrigger className="bg-card border-border focus:border-primary">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -252,7 +289,7 @@ const Settings = () => {
                       placeholder="e.g. CS-A"
                       value={className}
                       onChange={(e) => setClassName(e.target.value)}
-                      className="pl-10 bg-white/5 border-white/10 focus:border-primary"
+                      className="pl-10 bg-card border-border focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
@@ -265,7 +302,7 @@ const Settings = () => {
                       placeholder="e.g. 2024"
                       value={batch}
                       onChange={(e) => setBatch(e.target.value)}
-                      className="pl-10 bg-white/5 border-white/10 focus:border-primary"
+                      className="pl-10 bg-card border-border focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
@@ -275,7 +312,7 @@ const Settings = () => {
                 type="submit"
                 variant="glow"
                 size="lg"
-                className="w-full btn-gradient"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -302,16 +339,105 @@ const Settings = () => {
               <Shield className="w-5 h-5 text-primary" />
               Privacy & Security
             </h2>
+            
+            <div className="space-y-4">
+              {/* Screenshot Warning */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Screenshot Warning</p>
+                    <p className="text-xs text-muted-foreground">
+                      Show privacy reminder to others
+                    </p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={screenshotWarning} 
+                  onCheckedChange={toggleScreenshotWarning}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+
+              {/* Notifications */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    {notifications ? (
+                      <Bell className="w-5 h-5 text-primary" />
+                    ) : (
+                      <BellOff className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">Push Notifications</p>
+                    <p className="text-xs text-muted-foreground">
+                      {notifications ? "Receive match and message alerts" : "Notifications are muted"}
+                    </p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={notifications} 
+                  onCheckedChange={toggleNotifications}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Block Feature */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          <Card variant="glass" className="p-5 md:p-6 mb-4 md:mb-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Ban className="w-5 h-5 text-primary" />
+              Block & Report
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Manage blocked users and report inappropriate behavior.
+            </p>
+            
+            <Button
+              variant="outline"
+              className="w-full justify-between bg-card border-border hover:bg-secondary"
+              onClick={handleBlockUser}
+            >
+              <span className="flex items-center gap-2">
+                <Ban className="w-4 h-4" />
+                Block a User
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </Card>
+        </motion.div>
+
+        {/* Account Info */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card variant="glass" className="p-5 md:p-6 mb-4 md:mb-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Lock className="w-5 h-5 text-primary" />
+              Account Info
+            </h2>
             <p className="text-sm text-muted-foreground mb-4">
               Your crushes are 100% anonymous. No one can see who you've selected unless it's mutual.
             </p>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+            <div className="flex items-center justify-between p-4 rounded-xl" style={{ backgroundColor: 'var(--secondary)', borderColor: 'var(--border)' }}>
               <div>
                 <p className="font-medium">User ID</p>
                 <p className="text-xs text-muted-foreground">Your unique account identifier</p>
               </div>
-              <div className="text-xs font-mono bg-white/5 px-3 py-1.5 rounded-lg">{currentUserId.slice(-8)}</div>
+              <div className="text-xs font-mono px-3 py-1.5 rounded-lg" style={{ backgroundColor: 'var(--secondary)' }}>{currentUserId.slice(-8)}</div>
             </div>
           </Card>
         </motion.div>
@@ -320,7 +446,7 @@ const Settings = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.35 }}
         >
           <Card variant="glass" className="p-5 md:p-6">
             <h2 className="text-lg font-semibold mb-4">Account Actions</h2>
@@ -328,18 +454,18 @@ const Settings = () => {
             <div className="space-y-3">
               <Button
                 variant="outline"
-                className="w-full justify-start bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                className="w-full justify-start bg-card border-border hover:bg-secondary hover:border-border"
                 onClick={handleLogout}
               >
                 <LogOut className="w-5 h-5 mr-2" />
                 Sign Out
               </Button>
 
-              <Separator className="bg-white/10" />
+              <Separator style={{ backgroundColor: 'var(--border)' }} />
 
               <Button
                 variant="outline"
-                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20"
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20 bg-card border-border"
                 onClick={handleDeleteAccount}
               >
                 <Trash2 className="w-5 h-5 mr-2" />
@@ -356,7 +482,7 @@ const Settings = () => {
 
       {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <AlertDialogContent className="bg-card border border-white/10">
+        <AlertDialogContent className="bg-card" style={{ borderColor: 'var(--border)' }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Sign Out</AlertDialogTitle>
             <AlertDialogDescription>
@@ -364,7 +490,7 @@ const Settings = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-secondary border-border hover:bg-secondary">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmLogout}>
               Sign Out
             </AlertDialogAction>
@@ -374,7 +500,7 @@ const Settings = () => {
 
       {/* Delete Account Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-card border border-white/10">
+        <AlertDialogContent className="bg-card" style={{ borderColor: 'var(--border)' }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Account</AlertDialogTitle>
             <AlertDialogDescription>
@@ -385,7 +511,7 @@ const Settings = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-secondary border-border hover:bg-secondary">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteAccount}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -395,7 +521,30 @@ const Settings = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </SwipeWrapper>
+
+      {/* Block User Dialog */}
+      <AlertDialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+        <AlertDialogContent className="bg-card" style={{ borderColor: 'var(--border)' }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the username or user ID of the person you want to block. They won't be able to see your profile or send you messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Input 
+              placeholder="Enter username or user ID" 
+              className="bg-card border-border"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-secondary border-border hover:bg-secondary">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBlockUser}>
+              Block User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

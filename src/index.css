@@ -5,140 +5,68 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
-
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 151 100% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 60%;
-
-    --accent: 151 100% 50%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 151 100% 50%;
-    --heart: 345 100% 50%;
-
-    --radius: 0.75rem;
-
-    /* Custom CrushRadar tokens */
-    --glow-primary: 151 100% 50%;
-    --glass: 0 0% 100% / 0.05;
-    --glass-border: 0 0% 100% / 0.1;
-    --success: 151 100% 50%;
-    --warning: 45 100% 50%;
-    
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(151, 100%, 49%) 0%, hsl(140 100% 45%) 100%);
-    --gradient-dark: linear-gradient(180deg, hsl(0 0% 7%) 0%, hsl(0 0% 4%) 100%);
-    --gradient-glow: none;
-
-    --sidebar-background: 0 0% 6%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 151 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 151 100% 50%;
-  }
-
-  /* Light Mode - User can toggle this */
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
-
-    --primary: 192 100% 50%;
-    --primary-foreground: 0 0% 0%;
-
-    --secondary: 0 0% 95%;
-    --secondary-foreground: 0 0% 0%;
-
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 30%;
-
-    --accent: 192 100% 50%;
-    --accent-foreground: 0 0% 0%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
-    --ring: 192 100% 50%;
-    --heart: 345 100% 50%;
-
-    --glow-primary: 192 100% 50%;
-    --glass: 0 0% 0% / 0.03;
-    --glass-border: 0 0% 0% / 0.1;
-    --success: 142 71% 45%;
-    --warning: 45 100% 50%;
-    
-    --gradient-primary: linear-gradient(135deg, hsl(192, 100%, 50%) 0%, hsl(192, 100%, 40%) 100%);
-    --gradient-dark: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
-    --gradient-glow: none;
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 0%;
-    --sidebar-primary: 192 100% 50%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 0 0% 0%;
-    --sidebar-border: 0 0% 85%;
-    --sidebar-ring: 192 100% 50%;
-  }
-
-  /* Light mode - no transitions for instant change */
-  .light *,
-  .light *::before,
-  .light *::after {
-    transition: none !important;
-    animation: none !important;
-  }
-
+  /* Premium Dark Theme - Deeper blacks with emerald accents */
+  :root,
   .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 151 100% 50%;
+    /* Background - Deeper black */
+    --background: 0 0% 5%; /* #0E0F0F */
+    --foreground: 0 0% 95%; /* #F2F5F3 */
+    
+    /* Secondary text */
+    --secondary-text: 0 0% 88%; /* #e0e0e0 */
+    
+    /* Card - More contrast */
+    --card: 0 0% 9%; /* #161A18 */
+    --card-foreground: 0 0% 95%;
+    
+    /* Popover */
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
+    
+    /* Primary - Emerald gradient */
+    --primary: 153 39% 31%; /* #2E7D57 */
+    --primary-light: 153 50% 26%; /* #1B5E3A */
     --primary-foreground: 0 0% 100%;
+    
+    /* Secondary */
     --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary-foreground: 0 0% 95%;
+    
+    /* Muted */
     --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 151 100% 50%;
+    --muted-foreground: 0 0% 53%;
+    
+    /* Accent */
+    --accent: 153 39% 31%;
     --accent-foreground: 0 0% 100%;
+    
+    /* Destructive */
     --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 151 100% 50%;
-    --heart: 345 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Border - Subtle white/5 */
+    --border: 0 0% 17%;
+    --input: 0 0% 46%; /* #777777 */
+    --ring: 153 39% 31%;
+    
+    /* Heart - Soft neon red */
+    --heart: 350 100% 59%; /* #FF2D55 */
+    
+    /* Radius */
+    --radius: 0.75rem;
+    
+    /* Backgrounds */
+    --nav-bg: #0E0F0F;
+    --footer-bg: #0E0F0F;
+    --section-bg: #161A18;
+    --card-bg: #161A18;
+    
+    /* Input */
+    --input-bg: #161A18;
+    --placeholder: #6B7280;
+    
+    /* Divider */
+    --divider: #2A3230;
   }
 }
 
@@ -158,45 +86,52 @@
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl;
-  }
-
+  /* Navbar */
   .solid-navbar {
-    @apply fixed top-0 w-full bg-background border-b border-border z-50;
+    @apply fixed top-0 w-full z-50;
+    background-color: var(--nav-bg);
+    border-bottom: 1px solid var(--divider);
   }
 
+  /* Footer */
+  .solid-footer {
+    @apply fixed bottom-0 w-full z-50;
+    background-color: var(--footer-bg);
+    border-top: 1px solid var(--divider);
+  }
+
+  /* Card */
+  .glass-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Heart */
   .lucide-heart {
     color: hsl(var(--heart)) !important;
   }
 
-  .glow-primary {
-    box-shadow: none;
+  /* Input */
+  .input-dark {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+  }
+  
+  .input-dark::placeholder {
+    color: var(--placeholder);
   }
 
-  .glow-text {
-    text-shadow: none;
+  /* Button Primary - Blue #3B82F6 */
+  .btn-primary {
+    @apply bg-[#3B82F6] text-white hover:bg-[#2563EB] transition-colors duration-200;
   }
 
-  .gradient-text {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(151 100% 50%) 0%, hsl(140 100% 45%) 100%);
-  }
-
-  .hover-glow {
-    @apply transition-all duration-300;
-  }
-
-  .hover-glow:hover {
-    box-shadow: none;
-  }
-
-  .pulse-glow {
-    animation: none;
-  }
-
-  .float {
-    animation: float 6s ease-in-out infinite;
+  /* Secondary text */
+  .text-secondary {
+    color: var(--secondary-text);
   }
 }
 
@@ -204,53 +139,16 @@
   .text-balance {
     text-wrap: balance;
   }
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: none;
+  
+  /* Enable native touch scrolling */
+  .touch-scrollable {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
   }
-  50% {
-    box-shadow: none;
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
+  
+  /* Allow horizontal swipe only when needed */
+  .swipe-navigation {
+    touch-action: pan-x;
   }
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}

@@ -6,10 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ProfileSetup from "./pages/ProfileSetup";
-import Discover from "./pages/Discover";
-import Matches from "./pages/Matches";
-import Settings from "./pages/Settings";
+import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
+import MainLayout from "./components/MainLayout";
 
 const queryClient = new QueryClient();
 
@@ -24,9 +23,15 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile-setup" element={<ProfileSetup />} />
 
-          <Route path="/discover" element={<Discover />} />
-          <Route path="/matches" element={<Matches />} />
-          <Route path="/settings" element={<Settings />} />
+          {/* Main app with Instagram-style swipe navigation */}
+          <Route path="/discover" element={<MainLayout />} />
+          <Route path="/matches" element={<MainLayout />} />
+          <Route path="/chats" element={<MainLayout />} />
+          <Route path="/settings" element={<MainLayout />} />
+          
+          {/* Chat page (separate from main navigation) */}
+          <Route path="/chat" element={<Chat />} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

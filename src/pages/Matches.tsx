@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 import { Heart, Sparkles, PartyPopper, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import Navbar from "@/components/Navbar";
-import SwipeWrapper from "@/components/SwipeWrapper";
+import MatchCard from "@/components/MatchCard";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface MatchedUser {
   id: string;
@@ -15,10 +15,14 @@ interface MatchedUser {
   class?: string;
   batch?: string;
   matchedAt: string;
+  lastMessage?: string;
+  lastMessageSender?: 'me' | 'them' | null;
+  hasUnread?: boolean;
 }
 
 const Matches = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [matches, setMatches] = useState<MatchedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -79,19 +83,43 @@ const Matches = () => {
         }
 
         // Combine match data with profile data
-        const matchedUsers: MatchedUser[] = matchesData.map(match => {
+        const matchedUsers: MatchedUser[] = await Promise.all(matchesData.map(async match => {
           const matchedUserId = match.user1_id === user.id ? match.user2_id : match.user1_id;
           const profile = profiles?.find(p => p.id === matchedUserId);
           
+          // Get last message between current user and this match
+          const { data: lastMsg } = await supabase
+            .from("messages")
+            .select("content, sender_id, receiver_id, read_at")
+            .or(`and(sender_id.eq.${user.id},receiver_id.eq.${matchedUserId}),and(sender_id.eq.${matchedUserId},receiver_id.eq.${user.id})`)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          // Check if there are unread messages from this match - count messages where:
+          // - sender is the matched user (not current user)
+          // - read_at is null (not read yet)
+          const { count: unreadCount } = await supabase
+            .from("messages")
+            .select("*", { count: 'exact', head: true })
+            .eq("sender_id", matchedUserId)
+            .eq("receiver_id", user.id)
+            .is("read_at", null);
+
+          const hasUnread = (unreadCount || 0) > 0;
+
           return {
             id: matchedUserId,
             name: profile?.name || "Unknown",
             avatar_url: profile?.avatar_url,
             class: profile?.class,
             batch: profile?.batch,
-            matchedAt: new Date(match.matched_at).toLocaleDateString()
+            matchedAt: new Date(match.matched_at).toLocaleDateString(),
+            lastMessage: lastMsg?.content,
+            lastMessageSender: lastMsg?.sender_id === user.id ? 'me' : 'them',
+            hasUnread
           };
-        });
+        }));
 
         setMatches(matchedUsers);
       }
@@ -109,16 +137,7 @@ const Matches = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Navbar />
-
-      {/* Animated gradient background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      </div>
-
-      <SwipeWrapper>
-        <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8">
+      <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -141,7 +160,7 @@ const Matches = () => {
             animate={{ opacity: 1 }}
             className="text-center py-16"
           >
-            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--secondary)', borderColor: 'var(--border)' }}>
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Loading matches...</h3>
@@ -149,71 +168,31 @@ const Matches = () => {
           </motion.div>
         )}
 
-        {/* Matches Grid */}
+        {/* Matches List */}
         {!loading && matches.length > 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="grid grid-cols-3 md:grid-cols-4 gap-3"
+            className="flex flex-col gap-4"
           >
             {matches.map((match, index) => (
               <motion.div
                 key={match.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card 
-                  variant="glow" 
-                  className="p-5 md:p-6 hover:border-primary/40 transition-all duration-300"
-                >
-                  <div className="flex flex-col items-center text-center">
-                    {/* Avatar with glow effect */}
-                    <motion.div 
-                      className="relative mb-4"
-                      whileHover={{ scale: 1.05 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                    >
-                      <div className={`w-20 h-20 md:w-24 md:h-24 rounded-3xl flex items-center justify-center overflow-hidden transition-all duration-300 bg-gradient-to-br from-primary to-primary/70`}>
-                        {match.avatar_url ? (
-                          <img
-                            src={match.avatar_url}
-                            alt={match.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-3xl md:text-4xl font-bold text-white">
-                            {match.name.charAt(0)}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Heart badge */}
-                      <motion.div
-                        className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
-                      >
-                        <Heart className="w-4 h-4 text-white fill-white" />
-                      </motion.div>
-                    </motion.div>
-
-                    {/* Info */}
-                    <div className="mb-3">
-                      <h3 className="text-lg font-semibold">
-                        {match.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {match.class || "Unknown"} • {match.batch || "Unknown"}
-                      </p>
-                    </div>
-
-                    {/* Status */}
-                    <div className="text-xs font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary">
-                      <Sparkles className="w-3 h-3 inline mr-1" />
-                      Matched {match.matchedAt}
-                    </div>
-                  </div>
-                </Card>
+                <MatchCard
+                  id={match.id}
+                  name={match.name}
+                  avatar_url={match.avatar_url}
+                  bio={match.class ? `${match.class} • ${match.batch}` : undefined}
+                  matchedAt={match.matchedAt}
+                  lastMessage={match.lastMessage}
+                  lastMessageSender={match.lastMessageSender}
+                  hasUnread={match.hasUnread}
+                />
               </motion.div>
             ))}
           </motion.div>
@@ -223,7 +202,7 @@ const Matches = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-20"
           >
-            <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: 'var(--secondary)', borderColor: 'var(--border)' }}>
               <PartyPopper className="w-10 h-10 text-muted-foreground" />
             </div>
             <h3 className="text-xl font-semibold mb-2">No matches yet</h3>
@@ -246,9 +225,7 @@ const Matches = () => {
             transition={{ delay: 0.5 }}
             className="mt-8 md:mt-12"
           >
-            <Card variant="glow" className="p-6 md:p-8 text-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[150px] bg-primary/20 blur-[80px] rounded-full" />
+            <Card variant="glow" className="p-6 md:p-8 text-center" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}>
               <div className="relative z-10">
                 <PartyPopper className="w-10 h-10 md:w-12 md:h-12 text-primary mx-auto mb-3 md:mb-4" />
                 <h3 className="text-xl font-semibold mb-2">
@@ -262,7 +239,6 @@ const Matches = () => {
           </motion.div>
         )}
       </main>
-      </SwipeWrapper>
     </div>
   );
 };

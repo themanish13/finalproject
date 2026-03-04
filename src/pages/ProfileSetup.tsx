@@ -192,13 +192,7 @@ const ProfileSetup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Animated background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -260,7 +254,7 @@ const ProfileSetup = () => {
                   placeholder="Your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="pl-10 bg-secondary/50 border-border focus:border-primary"
+                  className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10"
                   required
                 />
               </div>
@@ -269,7 +263,7 @@ const ProfileSetup = () => {
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
               <Select value={gender} onValueChange={setGender}>
-                <SelectTrigger className="bg-secondary/50 border-border">
+                <SelectTrigger className="bg-white/5 border-white/10">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -292,7 +286,7 @@ const ProfileSetup = () => {
                     placeholder="e.g. CS-A"
                     value={className}
                     onChange={(e) => setClassName(e.target.value)}
-                    className="pl-10 bg-secondary/50 border-border focus:border-primary"
+                    className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10"
                   />
                 </div>
               </div>
@@ -306,7 +300,7 @@ const ProfileSetup = () => {
                     placeholder="e.g. 2024"
                     value={batch}
                     onChange={(e) => setBatch(e.target.value)}
-                    className="pl-10 bg-secondary/50 border-border focus:border-primary"
+                    className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10"
                   />
                 </div>
               </div>

@@ -1,0 +1,6 @@
+
+-- Messages table schema
+-- Add reactions column to store emoji reactions as JSONB array
+
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '[]'::jsonb;
+

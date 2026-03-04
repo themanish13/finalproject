@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Heart, Compass, Settings, Loader2 } from "lucide-react";
+import { Heart, Compass, Settings, Loader2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -87,6 +87,8 @@ const Navbar = () => {
         setUserName("User");
         setUserId(user.id);
       }
+
+      setHasInitialLoad(true);
     } catch (error) {
       console.error("Error loading user data:", error);
       if (!hasInitialLoad) {
@@ -99,11 +101,6 @@ const Navbar = () => {
     }
   };
 
-  const forceRefreshUserData = async () => {
-    setIsLoading(true);
-    await loadUserData(true);
-  };
-
   const handleAvatarClick = () => {
     navigate("/settings");
   };
@@ -111,6 +108,7 @@ const Navbar = () => {
   const navItems = [
     { path: "/discover", label: "Discover", icon: Compass },
     { path: "/matches", label: "Matches", icon: Heart },
+    { path: "/chats", label: "Chats", icon: MessageCircle },
     { path: "/settings", label: "Settings", icon: Settings },
   ];
 
@@ -127,7 +125,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-50" style={{ backgroundColor: '#121212' }}>
+      <nav className="sticky top-0 z-50 bg-[#0E0F0F]" style={{ backgroundColor: 'var(--nav-bg, #0E0F0F)' }}>
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
@@ -144,11 +142,11 @@ const Navbar = () => {
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-lg md:text-xl font-bold" style={{ color: '#fff' }}>CrushRadar</span>
+              <span className="text-lg md:text-xl font-bold" style={{ color: 'var(--foreground, #fff)' }}>CrushRadar</span>
             </motion.div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => (
                 <Button
                   key={item.path}
@@ -156,8 +154,8 @@ const Navbar = () => {
                   size="sm"
                   onClick={() => navigate(item.path)}
                   className={isActive(item.path) 
-                    ? "bg-white/10 text-primary" 
-                    : "text-white/70 hover:text-white hover:bg-white/5"
+                    ? "bg-[var(--secondary)] text-[var(--primary)]"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--secondary)]"
                   }
                 >
                   <item.icon className="w-4 h-4 mr-2" />
@@ -167,13 +165,13 @@ const Navbar = () => {
             </div>
 
             {/* User Actions - Desktop */}
-            <div className="hidden md:flex items-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/5 border border-white/10">
-                <Heart className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium" style={{ color: '#fff' }}>{userName}</span>
+            <div className="hidden lg:flex items-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl" style={{ backgroundColor: 'var(--secondary)', borderColor: 'var(--border)' }}>
+                <Heart className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+                <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{userName}</span>
               </div>
 
-              <div 
+              <div
                 className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform overflow-hidden border border-primary/20"
                 onClick={handleAvatarClick}
               >
@@ -194,33 +192,10 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* Mobile Menu Button - Removed for swipe-only navigation */}
-            {/* Mobile menu removed - using bottom nav and swipe gestures only */}
+            
           </div>
         </div>
       </nav>
-
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-[9999] md:hidden" style={{ backgroundColor: '#121212' }}>
-        <div className="flex items-center justify-around h-16 px-4">
-          {navItems.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-                isActive(item.path) 
-                  ? "text-[#22C55E]" 
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              <div className={`p-2 rounded-xl ${isActive(item.path) ? "bg-[#22C55E]/10" : ""}`}>
-                <item.icon className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-medium">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </>
   );
 };
