@@ -40,11 +40,12 @@ const ChatListItem = ({
       whileTap={{ scale: 0.98 }}
       onClick={handleClick}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-xl cursor-pointer select-none",
+        "chat-list-item flex items-center gap-3 p-3 rounded-xl cursor-pointer select-none",
         "bg-card border border-border",
         "hover:border-primary/30 hover:bg-card/80",
         "transition-all duration-200"
       )}
+      data-chat-item
     >
       {/* Avatar */}
       <div className="relative flex-shrink-0">

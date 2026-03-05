@@ -278,6 +278,8 @@ const ChatList = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
+                    className="chat-list-item"
+                    data-chat-item
                   >
                     <ChatListItem {...chat} />
                   </motion.div>

@@ -64,7 +64,7 @@ const MessageInput = ({
             "w-full bg-background/80 backdrop-blur-sm resize-none rounded-2xl px-4 py-3",
             "placeholder:text-muted-foreground/60",
             "focus:outline-none text-sm border border-border/50",
-            "max-h-[120px] overflow-y-auto",
+            "max-h-[120px] overflow-y-auto hide-scrollbar",
             isFocused && "bg-background border-primary/30"
           )}
         />

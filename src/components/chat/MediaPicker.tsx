@@ -195,8 +195,7 @@ const MediaPicker = ({
         {/* Thumbnail Tray */}
         <div 
           ref={scrollRef}
-          className="flex gap-2 overflow-x-auto scrollbar-hide px-2 py-1"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="flex gap-2 overflow-x-auto hide-scrollbar px-2 py-1"
         >
           {/* Recent Thumbnails */}
           {recentPhotos.slice(0, maxRecentItems).map((item, index) => (

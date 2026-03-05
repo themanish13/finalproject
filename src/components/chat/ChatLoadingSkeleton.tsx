@@ -18,7 +18,7 @@ const ChatLoadingSkeleton = ({ className }: ChatLoadingSkeletonProps) => {
       </div>
 
       {/* Messages skeleton */}
-      <div className="flex-1 overflow-y-auto space-y-4 py-4">
+      <div className="flex-1 overflow-y-auto space-y-4 py-4 hide-scrollbar">
         {/* Receive message skeleton */}
         <div className="flex gap-3">
           <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />

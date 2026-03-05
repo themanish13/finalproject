@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Compass, Heart, MessageCircle, Settings } from "lucide-react";
@@ -17,193 +17,259 @@ const PAGES = [
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
-// Very low threshold for easy swiping
-const SWIPE_THRESHOLD = 20;
+// Swipe configuration - Instagram-style
+const SWIPE_THRESHOLD = 30; // Reduced from 60 for more responsive swipes
+const VELOCITY_THRESHOLD = 0.25; // Slightly reduced for better sensitivity
+const TRANSITION_DURATION = "0.28s";
+const TRANSITION_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const EDGE_RESISTANCE = 0.35;
 
 const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   
-  // Track touch position
+  // Use refs for better performance (avoids re-renders)
+  const currentIndex = useRef(0);
   const startX = useRef(0);
-  const startY = useRef(0);
   const currentX = useRef(0);
+  const startTime = useRef(0);
+  const isDragging = useRef(false);
+  const isAnimating = useRef(false);
   
-  // Motion values
+  // Motion values for smooth animations
   const x = useMotionValue(0);
 
-  // Get current index from location
+  // Sync with URL on mount and URL change
   useEffect(() => {
     const index = PAGES.findIndex(p => p.path === location.pathname);
-    if (index !== -1 && index !== activeIndex) {
-      setActiveIndex(index);
-      const screenWidth = window.innerWidth;
-      x.set(-index * screenWidth);
+    if (index !== -1 && index !== currentIndex.current) {
+      currentIndex.current = index;
+      const wrapper = wrapperRef.current;
+      if (wrapper) {
+        wrapper.style.transition = TRANSITION_DURATION + " " + TRANSITION_EASE;
+        wrapper.style.transform = `translateX(-${index * 100}vw)`;
+        x.set(-index * window.innerWidth);
+      }
     }
-  }, [location.pathname, activeIndex, x]);
+  }, [location.pathname, x]);
 
   // Handle resize
   useEffect(() => {
     const handleResize = () => {
-      const screenWidth = window.innerWidth;
-      x.set(-activeIndex * screenWidth);
+      const wrapper = wrapperRef.current;
+      if (wrapper) {
+        wrapper.style.transition = "none";
+        wrapper.style.transform = `translateX(-${currentIndex.current * window.innerWidth}px)`;
+        x.set(-currentIndex.current * window.innerWidth);
+      }
     };
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [activeIndex, x]);
+  }, [x]);
 
-  // Check if swipe is allowed
+  // Check if swipe is allowed - simplified to always allow unless in input field
   const checkSwipeAllowed = useCallback((target: EventTarget | null): boolean => {
     if (!target || !(target instanceof Element)) return true;
     
     const tagName = target.tagName.toLowerCase();
     
-    // Block swipe on form elements
-    if (['input', 'textarea', 'select', 'video', 'audio'].includes(tagName)) {
-      return false;
+    // Only block when actively typing in an input/textarea
+    if (tagName === 'input' || tagName === 'textarea') {
+      return document.activeElement !== target;
     }
-    
-    // Block swipe on interactive elements
-    const closest = target.closest('button, [contenteditable="true"], .no-swipe, .swipe-locked, [data-scrollable="true"], .chat-messages, .messages-container');
-    if (closest) return false;
     
     return true;
   }, []);
 
   // Touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isAnimating.current) return;
+    
     const target = e.target as Element;
     if (!checkSwipeAllowed(target)) return;
     
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    
+    // Don't start swipe if touching interactive elements or chat items
+    const closestInteractive = target.closest('a, button, [role="button"], .chat-list-item, [data-chat-item]');
+    if (closestInteractive) return;
+    
     startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
     currentX.current = startX.current;
-    setIsDragging(true);
+    startTime.current = Date.now();
+    isDragging.current = true;
+    
+    // Disable transition during drag for immediate response
+    wrapper.style.transition = "none";
+    wrapper.style.willChange = "transform";
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
+    if (!isDragging.current || isAnimating.current) return;
     
-    const clientX = e.touches[0].clientX;
-    const clientY = e.touches[0].clientY;
-    const deltaX = clientX - startX.current;
-    const deltaY = clientY - startY.current;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
     
-    // Only handle horizontal if more horizontal than vertical
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      e.preventDefault();
-      const screenWidth = window.innerWidth;
-      const basePosition = -activeIndex * screenWidth;
-      x.set(basePosition + deltaX);
+    const deltaX = e.touches[0].clientX - startX.current;
+    currentX.current = e.touches[0].clientX;
+
+    let translate = -currentIndex.current * window.innerWidth + deltaX;
+
+    // Edge resistance at boundaries
+    if (currentIndex.current === 0 && deltaX > 0) {
+      translate = -currentIndex.current * window.innerWidth + deltaX * EDGE_RESISTANCE;
+    } else if (currentIndex.current === PAGES.length - 1 && deltaX < 0) {
+      translate = -currentIndex.current * window.innerWidth + deltaX * EDGE_RESISTANCE;
     }
+
+    wrapper.style.transform = `translateX(${translate}px)`;
+    x.set(translate);
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!isDragging) return;
-    setIsDragging(false);
+  const handleTouchEnd = () => {
+    if (!isDragging.current || isAnimating.current) return;
+    isDragging.current = false;
     
-    const endX = e.changedTouches[0].clientX;
-    const deltaX = endX - startX.current;
-    const screenWidth = window.innerWidth;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
     
-    let newIndex = activeIndex;
-    
-    // Easy threshold - just 20px
-    if (deltaX < -SWIPE_THRESHOLD && activeIndex < PAGES.length - 1) {
-      newIndex = activeIndex + 1;
-    } else if (deltaX > SWIPE_THRESHOLD && activeIndex > 0) {
-      newIndex = activeIndex - 1;
+    const deltaX = currentX.current - startX.current;
+    const time = Date.now() - startTime.current;
+    const velocity = deltaX / time;
+
+    let newIndex = currentIndex.current;
+
+    // Check if swipe meets threshold or velocity
+    if (Math.abs(deltaX) > SWIPE_THRESHOLD || Math.abs(velocity) > VELOCITY_THRESHOLD) {
+      // Swipe LEFT - only if not on last page
+      if (deltaX < 0 && currentIndex.current < PAGES.length - 1) {
+        newIndex = currentIndex.current + 1;
+      } 
+      // Swipe RIGHT - only if not on first page
+      else if (deltaX > 0 && currentIndex.current > 0) {
+        newIndex = currentIndex.current - 1;
+      }
     }
-    
+
     // Animate to new position
-    const targetX = -newIndex * screenWidth;
+    isAnimating.current = true;
+    currentIndex.current = newIndex;
     
-    if (newIndex !== activeIndex) {
-      if (navigator.vibrate) navigator.vibrate(10);
-      setActiveIndex(newIndex);
+    wrapper.style.transition = TRANSITION_DURATION + " " + TRANSITION_EASE;
+    wrapper.style.transform = `translateX(-${newIndex * 100}vw)`;
+    x.set(-newIndex * window.innerWidth);
+    
+    // Navigate after animation
+    setTimeout(() => {
+      isAnimating.current = false;
       navigate(PAGES[newIndex].path);
-    }
+      wrapper.style.willChange = "auto";
+    }, 280); // Match transition duration
     
-    // Snap to position
-    x.set(targetX);
+    if (navigator.vibrate) navigator.vibrate(10);
   };
 
   // Mouse handlers (for desktop)
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isAnimating.current) return;
+    
     const target = e.target as Element;
     if (!checkSwipeAllowed(target)) return;
     
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    
+    // Don't start swipe if clicking on interactive elements or chat items
+    const closestInteractive = target.closest('a, button, [role="button"], .chat-list-item, [data-chat-item]');
+    if (closestInteractive) return;
+    
     startX.current = e.clientX;
-    startY.current = e.clientY;
     currentX.current = startX.current;
-    setIsDragging(true);
+    startTime.current = Date.now();
+    isDragging.current = true;
+    
+    wrapper.style.transition = "none";
+    wrapper.style.willChange = "transform";
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging.current || isAnimating.current) return;
+    
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
     
     const deltaX = e.clientX - startX.current;
-    const deltaY = e.clientY - startY.current;
-    
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      const screenWidth = window.innerWidth;
-      const basePosition = -activeIndex * screenWidth;
-      x.set(basePosition + deltaX);
+    currentX.current = e.clientX;
+
+    let translate = -currentIndex.current * window.innerWidth + deltaX;
+
+    // Edge resistance at boundaries
+    if (currentIndex.current === 0 && deltaX > 0) {
+      translate = -currentIndex.current * window.innerWidth + deltaX * EDGE_RESISTANCE;
+    } else if (currentIndex.current === PAGES.length - 1 && deltaX < 0) {
+      translate = -currentIndex.current * window.innerWidth + deltaX * EDGE_RESISTANCE;
     }
+
+    wrapper.style.transform = `translateX(${translate}px)`;
+    x.set(translate);
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setIsDragging(false);
+  const handleMouseUp = () => {
+    if (!isDragging.current || isAnimating.current) return;
+    isDragging.current = false;
     
-    const deltaX = e.clientX - startX.current;
-    const screenWidth = window.innerWidth;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
     
-    let newIndex = activeIndex;
-    
-    if (deltaX < -SWIPE_THRESHOLD && activeIndex < PAGES.length - 1) {
-      newIndex = activeIndex + 1;
-    } else if (deltaX > SWIPE_THRESHOLD && activeIndex > 0) {
-      newIndex = activeIndex - 1;
+    const deltaX = currentX.current - startX.current;
+    const time = Date.now() - startTime.current;
+    const velocity = deltaX / time;
+
+    let newIndex = currentIndex.current;
+
+    if (Math.abs(deltaX) > SWIPE_THRESHOLD || Math.abs(velocity) > VELOCITY_THRESHOLD) {
+      if (deltaX < 0 && currentIndex.current < PAGES.length - 1) {
+        newIndex = currentIndex.current + 1;
+      } else if (deltaX > 0 && currentIndex.current > 0) {
+        newIndex = currentIndex.current - 1;
+      }
     }
+
+    isAnimating.current = true;
+    currentIndex.current = newIndex;
     
-    const targetX = -newIndex * screenWidth;
+    wrapper.style.transition = TRANSITION_DURATION + " " + TRANSITION_EASE;
+    wrapper.style.transform = `translateX(-${newIndex * 100}vw)`;
+    x.set(-newIndex * window.innerWidth);
     
-    if (newIndex !== activeIndex) {
-      if (navigator.vibrate) navigator.vibrate(10);
-      setActiveIndex(newIndex);
+    setTimeout(() => {
+      isAnimating.current = false;
       navigate(PAGES[newIndex].path);
-    }
+      wrapper.style.willChange = "auto";
+    }, 280);
     
-    x.set(targetX);
+    if (navigator.vibrate) navigator.vibrate(10);
   };
 
   const handleMouseLeave = () => {
-    if (isDragging) {
-      setIsDragging(false);
-      const screenWidth = window.innerWidth;
-      x.set(-activeIndex * screenWidth);
+    if (isDragging.current) {
+      isDragging.current = false;
+      const wrapper = wrapperRef.current;
+      if (wrapper) {
+        wrapper.style.transition = TRANSITION_DURATION + " " + TRANSITION_EASE;
+        wrapper.style.transform = `translateX(-${currentIndex.current * 100}vw)`;
+        x.set(-currentIndex.current * window.innerWidth);
+      }
     }
   };
 
-  // Nav click handler
-  const handleNavClick = (index: number) => {
-    if (index !== activeIndex) {
-      if (navigator.vibrate) navigator.vibrate(10);
-      setActiveIndex(index);
-      navigate(PAGES[index].path);
-    }
-    const screenWidth = window.innerWidth;
-    x.set(-index * screenWidth);
-  };
-
-  // Transform for position
-  const pageTransform = useTransform(x, (value) => `${value}px`);
+  // Get current index for rendering
+  const activeIndex = PAGES.findIndex(p => p.path === location.pathname);
 
   return (
     <>
@@ -214,7 +280,7 @@ const MainLayout = () => {
       
       <div 
         ref={containerRef}
-        className="fixed inset-0 overflow-hidden bg-background lg:top-20 lg:pt-0"
+        className="fixed inset-0 overflow-hidden bg-background lg:top-20 lg:pt-0 hide-scrollbar"
         style={{ height: '100dvh', width: '100vw' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -224,46 +290,48 @@ const MainLayout = () => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
       >
-      {/* Pages Container */}
-      <motion.div
-        className="flex h-full"
-        style={{ 
-          x: pageTransform,
-          width: `${PAGES.length * 100}%`,
-        }}
-      >
-        {/* Discover */}
-        <div 
-          className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20"
-          style={{ height: '100dvh' }}
+        {/* Pages Container */}
+        <div
+          ref={wrapperRef}
+          className="flex w-[400vw] h-full hide-scrollbar"
+          style={{ 
+            willChange: "transform",
+            transform: `translateX(-${activeIndex * 100}vw)`
+          }}
         >
-          <Discover />
+          {/* Discover */}
+          <div 
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            style={{ height: '100dvh' }}
+          >
+            <Discover />
+          </div>
+          
+          {/* Matches */}
+          <div 
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            style={{ height: '100dvh' }}
+          >
+            <Matches />
+          </div>
+          
+          {/* Chats */}
+          <div 
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            style={{ height: '100dvh' }}
+          >
+            <ChatList />
+          </div>
+          
+          {/* Settings */}
+          <div 
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            style={{ height: '100dvh' }}
+          >
+            <SettingsPage />
+          </div>
         </div>
-        
-        {/* Matches */}
-        <div 
-          className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20"
-          style={{ height: '100dvh' }}
-        >
-          <Matches />
-        </div>
-        
-        {/* Chats */}
-        <div 
-          className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20"
-          style={{ height: '100dvh' }}
-        >
-          <ChatList />
-        </div>
-        
-        {/* Settings */}
-        <div 
-          className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20"
-          style={{ height: '100dvh' }}
-        >
-          <SettingsPage />
-        </div>
-      </motion.div>
+      </div>
 
       {/* Bottom Navigation */}
       <motion.div 
@@ -280,7 +348,24 @@ const MainLayout = () => {
             return (
               <button
                 key={item.path}
-                onClick={() => handleNavClick(index)}
+                onClick={() => {
+                  if (index !== activeIndex) {
+                    if (navigator.vibrate) navigator.vibrate(10);
+                    
+                    const wrapper = wrapperRef.current;
+                    if (wrapper) {
+                      isAnimating.current = true;
+                      wrapper.style.transition = TRANSITION_DURATION + " " + TRANSITION_EASE;
+                      wrapper.style.transform = `translateX(-${index * 100}vw)`;
+                      x.set(-index * window.innerWidth);
+                      
+                      setTimeout(() => {
+                        isAnimating.current = false;
+                        navigate(PAGES[index].path);
+                      }, 280);
+                    }
+                  }
+                }}
                 className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-xl transition-all relative min-w-[60px] touch-manipulation"
               >
                 <motion.div
@@ -318,7 +403,6 @@ const MainLayout = () => {
           })}
         </div>
       </motion.div>
-    </div>
     </>
   );
 };

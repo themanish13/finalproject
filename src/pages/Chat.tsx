@@ -57,10 +57,36 @@ const Chat = () => {
   const searchParams = new URLSearchParams(location.search);
   const matchId = searchParams.get("matchId");
 
+  // Load deleted message IDs from localStorage on mount
+  const getInitialDeletedIds = (): Set<string> => {
+    try {
+      const stored = localStorage.getItem(`deleted_messages_${matchId}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+  
+  // Load "deleted for me" IDs (messages user deleted for themselves only)
+  const getInitialDeletedForMeIds = (): Set<string> => {
+    try {
+      const stored = localStorage.getItem(`deleted_for_me_${matchId}`);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+  
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  // Track "deleted for me" IDs - messages user deleted for themselves only (receiver still sees them)
+  const [deletedForMeIds, setDeletedForMeIds] = useState<Set<string>>(() => getInitialDeletedForMeIds());
+  const deletedForMeIdsRef = useRef<Set<string>>(getInitialDeletedForMeIds());
+  // Track permanently deleted IDs (unsent - both users can't see)
+  const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(() => getInitialDeletedIds());
+  const deletedMessageIdsRef = useRef<Set<string>>(getInitialDeletedIds());
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
@@ -241,12 +267,23 @@ const Chat = () => {
           .from("messages")
           .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id")
           .or(`and(sender_id.eq.${user.id},receiver_id.eq.${matchId}),and(sender_id.eq.${matchId},receiver_id.eq.${user.id})`)
+          .or("is_unsent.is.null,is_unsent.eq.false")
           .order("created_at", { ascending: true });
         
         if (messagesData) {
+          // Filter out messages that have been permanently deleted (unsent) OR deleted for me
+          const filteredMessages = messagesData.filter(msg => 
+            !deletedMessageIdsRef.current.has(msg.id) && 
+            !deletedForMeIdsRef.current.has(msg.id)
+          );
+          
           const messagesWithReplies = await Promise.all(
-            messagesData.map(async (msg) => {
+            filteredMessages.map(async (msg) => {
               if (msg.reply_to_id) {
+                // Check if the replied message was also deleted
+                if (deletedMessageIdsRef.current.has(msg.reply_to_id) || deletedForMeIdsRef.current.has(msg.reply_to_id)) {
+                  return { ...msg, reply_to_id: null, reply_to_content: "Message", reactions: [] };
+                }
                 const { data: replyMsg } = await supabase
                   .from("messages")
                   .select("content")
@@ -263,35 +300,120 @@ const Chat = () => {
         await supabase.from("messages").update({ read_at: new Date().toISOString() })
           .eq("sender_id", matchId).eq("receiver_id", user.id).is("read_at", null);
 
-        const channel = supabase.channel(`chat:${matchId}`).on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${user.id}` },
-          (payload) => { 
-            if (payload.new && (payload.new as Message).sender_id === matchId) {
-              setMessages(prev => [...prev, { ...payload.new as Message, reactions: [] }]); 
-              setIsOtherUserTyping(true);
-              setTimeout(() => setIsOtherUserTyping(false), 2000);
+        // Create a dedicated channel for real-time chat communication (including unsend)
+        const chatChannel = supabase.channel(`chat:${matchId}`);
+        
+        // Listen for broadcast messages (unsend notifications)
+        chatChannel.on(
+          'broadcast',
+          { event: 'unsend' },
+          ({ payload }) => {
+            console.log('Received unsend broadcast:', payload);
+            if (payload && payload.messageId) {
+              // Add to local deleted IDs and save to localStorage
+              const newDeletedIds = new Set(deletedMessageIdsRef.current).add(payload.messageId);
+              setDeletedMessageIds(newDeletedIds);
+              deletedMessageIdsRef.current = newDeletedIds;
+              try {
+                localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
+              } catch (e) { /* ignore */ }
+              // Remove from UI
+              setMessages(prev => prev.filter(msg => msg.id !== payload.messageId));
             }
           }
         ).subscribe();
         
-        const updateChannel = supabase.channel(`chat:updates:${matchId}`).on(
+        // Also listen for INSERT events
+        chatChannel.on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${user.id}` },
+          (payload) => { 
+            if (payload.new && (payload.new as Message).sender_id === matchId) {
+              const newMsg = payload.new as Message;
+              // Don't add if this message was deleted locally (unsent or deleted for me)
+              // Also filter out messages that are marked as unsent in the database
+              if (!deletedMessageIdsRef.current.has(newMsg.id) && 
+                  !deletedForMeIdsRef.current.has(newMsg.id) &&
+                  !(newMsg as any).is_unsent) {
+                setMessages(prev => [...prev, { ...newMsg, reactions: [] }]); 
+                setIsOtherUserTyping(true);
+                setTimeout(() => setIsOtherUserTyping(false), 2000);
+              }
+            }
+          }
+        );
+        
+        // Listen for UPDATE events (including is_unsent)
+        chatChannel.on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "messages" },
           (payload) => {
             if (payload.new && (payload.new as Message).id) {
-              setMessages(prev => prev.map(msg => 
-                msg.id === (payload.new as Message).id 
-                  ? { ...msg, ...payload.new } 
-                  : msg
-              ));
+              const updatedMsg = payload.new as Message;
+              
+              // Check if message was unsent - remove from UI for both users
+              if ((updatedMsg as any).is_unsent === true) {
+                // Add to local deleted IDs and save to localStorage
+                const newDeletedIds = new Set(deletedMessageIdsRef.current).add(updatedMsg.id);
+                setDeletedMessageIds(newDeletedIds);
+                deletedMessageIdsRef.current = newDeletedIds;
+                try {
+                  localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
+                } catch (e) { /* ignore */ }
+                // Remove from UI
+                setMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id));
+                return;
+              }
+              
+              // Check if the other user deleted this message for themselves
+              // If so, add to our local "deleted for me" list and remove from UI
+              const isDeletedForReceiver = updatedMsg.sender_id !== currentUserId && (updatedMsg as any).deleted_for_receiver;
+              const isDeletedForSender = updatedMsg.sender_id === currentUserId && (updatedMsg as any).deleted_for_sender;
+              
+              if (isDeletedForReceiver || isDeletedForSender) {
+                // Add to local deleted IDs and save to localStorage
+                const newDeletedForMeIds = new Set(deletedForMeIdsRef.current).add(updatedMsg.id);
+                setDeletedForMeIds(newDeletedForMeIds);
+                deletedForMeIdsRef.current = newDeletedForMeIds;
+                try {
+                  localStorage.setItem(`deleted_for_me_${matchId}`, JSON.stringify([...newDeletedForMeIds]));
+                } catch (e) { /* ignore */ }
+                // Remove from UI
+                setMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id));
+              } else {
+                setMessages(prev => prev.map(msg => 
+                  msg.id === updatedMsg.id 
+                    ? { ...msg, ...updatedMsg } 
+                    : msg
+                ));
+              }
+            }
+          }
+        );
+        
+        // Legacy: Listen for DELETE events
+        const deleteChannel = supabase.channel(`chat:delete:${matchId}`).on(
+          "postgres_changes",
+          { event: "DELETE", schema: "public", table: "messages" },
+          (payload) => {
+            if (payload.old && (payload.old as any).id) {
+              const deletedId = (payload.old as any).id;
+              // Add to local deleted IDs and save to localStorage
+              const newDeletedIds = new Set(deletedMessageIdsRef.current).add(deletedId);
+              setDeletedMessageIds(newDeletedIds);
+              deletedMessageIdsRef.current = newDeletedIds;
+              try {
+                localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
+              } catch (e) { /* ignore */ }
+              // Remove from UI
+              setMessages(prev => prev.filter(msg => msg.id !== deletedId));
             }
           }
         ).subscribe();
         
         return () => { 
-          supabase.removeChannel(channel); 
-          supabase.removeChannel(updateChannel);
+          supabase.removeChannel(chatChannel); 
+          supabase.removeChannel(deleteChannel);
         };
       } else {
         const { data: matchesData } = await supabase.from("matches").select("user1_id, user2_id").or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`).limit(1).single();
@@ -427,19 +549,82 @@ const Chat = () => {
 
   const handleUnsendMessage = async (messageId: string) => {
     try {
-      await supabase.from("messages").update({ 
-        is_unsent: true,
-        content: "This message was deleted"
-      }).eq("id", messageId);
+      // Soft delete: Mark message as unsent instead of permanently deleting
+      // This ensures realtime notifications are sent to the receiver
+      const { error: dbError } = await supabase
+        .from("messages")
+        .update({ is_unsent: true })
+        .eq("id", messageId);
       
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, is_unsent: true, content: "This message was deleted" } 
-          : msg
-      ));
+      if (dbError) {
+        console.error("Database update error:", dbError);
+      }
+      
+      // Send broadcast notification to the receiver using Supabase realtime
+      // This doesn't depend on database realtime being enabled
+      const broadcastChannel = supabase.channel(`chat:${matchId}`);
+      await broadcastChannel.send({
+        type: 'broadcast',
+        event: 'unsend',
+        payload: { messageId }
+      });
+      
+      // Track deleted message ID locally to ensure it stays deleted
+      // Also save to localStorage so it persists across page refreshes
+      const newDeletedIds = new Set(deletedMessageIdsRef.current).add(messageId);
+      setDeletedMessageIds(newDeletedIds);
+      deletedMessageIdsRef.current = newDeletedIds;
+      
+      // Save to localStorage for persistence
+      try {
+        localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
+      } catch (storageError) {
+        console.error("localStorage save error:", storageError);
+      }
+      
+      // Remove the message from local state completely
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
       setSelectedMessageId(null);
     } catch (error) {
-      console.error("Error unsending message:", error);
+      console.error("Error deleting message:", error);
+    }
+  };
+
+  // Handle "Delete for Me" - only hides message for current user, receiver still sees it
+  const handleDeleteForMe = async (messageId: string) => {
+    try {
+      // Update the message in DB to mark as deleted for this user
+      const message = messages.find(m => m.id === messageId);
+      if (!message) return;
+      
+      const { error: dbError } = await supabase
+        .from("messages")
+        .update({ 
+          deleted_for_sender: message.sender_id === currentUserId,
+          deleted_for_receiver: message.sender_id !== currentUserId
+        })
+        .eq("id", messageId);
+      
+      if (dbError) {
+        console.error("Database update error:", dbError);
+      }
+      
+      // Track "deleted for me" ID locally - save to localStorage
+      const newDeletedForMeIds = new Set(deletedForMeIdsRef.current).add(messageId);
+      setDeletedForMeIds(newDeletedForMeIds);
+      deletedForMeIdsRef.current = newDeletedForMeIds;
+      
+      try {
+        localStorage.setItem(`deleted_for_me_${matchId}`, JSON.stringify([...newDeletedForMeIds]));
+      } catch (storageError) {
+        console.error("localStorage save error:", storageError);
+      }
+      
+      // Remove from local UI only
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      setSelectedMessageId(null);
+    } catch (error) {
+      console.error("Error deleting for me:", error);
     }
   };
 
@@ -509,7 +694,9 @@ const Chat = () => {
     }
   };
 
-  const handleQuickReaction = async (messageId: string, reaction: string) => {
+  const handleQuickReaction = async (e: React.MouseEvent | React.TouchEvent | React.PointerEvent, messageId: string, reaction: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     await handleReaction(messageId, reaction);
     setLongPressPopup(null);
     if (navigator.vibrate) {
@@ -518,7 +705,9 @@ const Chat = () => {
   };
 
   // Handle reply from popup
-  const handlePopupReply = () => {
+  const handlePopupReply = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (longPressPopup) {
       const message = messages.find(m => m.id === longPressPopup.messageId);
       if (message) {
@@ -529,7 +718,9 @@ const Chat = () => {
   };
 
   // Handle copy from popup
-  const handlePopupCopy = () => {
+  const handlePopupCopy = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (longPressPopup?.messageContent) {
       navigator.clipboard.writeText(longPressPopup.messageContent);
     }
@@ -537,7 +728,9 @@ const Chat = () => {
   };
 
   // Handle delete from popup
-  const handlePopupDelete = () => {
+  const handlePopupDelete = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (longPressPopup) {
       handleUnsendMessage(longPressPopup.messageId);
     }
@@ -593,7 +786,11 @@ const Chat = () => {
   }
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden" onClick={() => setLongPressPopup(null)}>
+    <div 
+      className="h-[100dvh] bg-background flex flex-col overflow-hidden" 
+      onClick={() => setLongPressPopup(null)}
+      style={{ height: '100dvh' }}
+    >
       {/* Drag overlay */}
       <AnimatePresence>
         {isDragging && (
@@ -612,8 +809,8 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <header className="flex-shrink-0 px-4 py-3 flex items-center justify-between bg-card border-b border-border z-10">
+      {/* Header - Sticky at top */}
+      <header className="flex-shrink-0 px-4 py-3 flex items-center justify-between bg-card border-b border-border z-10 sticky top-0">
         {isMultiSelectMode ? (
           <div className="flex items-center gap-3 w-full">
             <button 
@@ -666,11 +863,14 @@ const Chat = () => {
         )}
       </header>
 
-      {/* Message Container */}
+      {/* Message Container - Scrollable middle section */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto overflow-visible px-4 space-y-4 pb-2"
-        style={{ paddingBottom: keyboardHeight > 0 ? `${keyboardHeight + 16}px` : undefined }}
+        className="flex-1 overflow-y-auto overflow-visible px-4 space-y-4 pb-2 hide-scrollbar"
+        style={{ 
+          paddingBottom: keyboardHeight > 0 ? `${keyboardHeight + 16}px` : undefined,
+          minHeight: 0 
+        }}
       >
         {/* Fade gradient when scrolling up */}
         <div className="sticky top-0 left-0 right-0 h-4 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
@@ -911,11 +1111,12 @@ const Chat = () => {
                   {QUICK_REACTIONS.map((reaction, index) => (
                     <motion.button
                       key={`default-${reaction}`}
+                      type="button"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: index * 0.05 }}
-                      onClick={() => handleQuickReaction(longPressPopup.messageId, reaction)}
-                      className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all hover:scale-125 active:scale-90 text-xl shadow-sm"
+                      onPointerDown={(e) => handleQuickReaction(e, longPressPopup.messageId, reaction)}
+                      className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all hover:scale-125 active:scale-90 text-xl shadow-sm touch-action-manipulation"
                     >
                       {reaction}
                     </motion.button>
@@ -929,8 +1130,9 @@ const Chat = () => {
                 <div className="bg-white py-1">
                   {/* Reply */}
                   <button
-                    onClick={handlePopupReply}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    type="button"
+                    onPointerDown={handlePopupReply}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-action-manipulation"
                   >
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                       <Reply className="w-4 h-4 text-blue-600" />
@@ -940,8 +1142,9 @@ const Chat = () => {
                   
                   {/* Copy */}
                   <button
-                    onClick={handlePopupCopy}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    type="button"
+                    onPointerDown={handlePopupCopy}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-action-manipulation"
                   >
                     <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
                       <Copy className="w-4 h-4 text-gray-600" />
@@ -949,18 +1152,36 @@ const Chat = () => {
                     <span className="text-gray-700 font-medium text-sm">Copy</span>
                   </button>
                   
-                 
+                  {/* Delete for Me - shown for all messages */}
+                  <button
+                    type="button"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (longPressPopup) {
+                        handleDeleteForMe(longPressPopup.messageId);
+                      }
+                      setLongPressPopup(null);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 active:bg-red-100 transition-colors touch-action-manipulation"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </div>
+                    <span className="text-red-600 font-medium text-sm">Delete for Me</span>
+                  </button>
                   
-                  {/* Delete - only for own messages */}
+                  {/* Unsend - only for own messages */}
                   {longPressPopup.isOwnMessage && (
                     <button
-                      onClick={handlePopupDelete}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 active:bg-red-100 transition-colors"
+                      type="button"
+                      onPointerDown={handlePopupDelete}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 active:bg-red-100 transition-colors touch-action-manipulation"
                     >
                       <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </div>
-                      <span className="text-red-600 font-medium text-sm">Delete</span>
+                      <span className="text-red-600 font-medium text-sm">Unsend</span>
                     </button>
                   )}
                 </div>
@@ -970,14 +1191,14 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* Reply Indicator */}
+      {/* Reply Indicator - Sticky above input */}
       <AnimatePresence>
         {replyToMessage && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex-shrink-0 px-4 py-2 bg-card border-t border-border overflow-hidden"
+            className="flex-shrink-0 px-4 py-2 bg-card border-t border-border overflow-hidden sticky bottom-12"
           >
             <div className="mx-auto max-w-md px-4 py-2 rounded-xl flex items-center justify-between bg-secondary border border-border border-l-4 border-l-primary">
               <div className="flex-1 min-w-0">
@@ -1005,8 +1226,8 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* Input Bar */}
-      <div className="flex-shrink-0 bg-background border-t border-border/30">
+      {/* Input Bar - Sticky at bottom */}
+      <div className="flex-shrink-0 bg-background border-t border-border/30 sticky bottom-0" style={{ paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined }}>
         <MessageInput
           value={newMessage}
           onChange={setNewMessage}
