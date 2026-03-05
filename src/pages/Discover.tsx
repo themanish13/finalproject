@@ -17,7 +17,7 @@ interface User {
   gender?: string;
 }
 
-// Match reveal animation component
+// Centered Modal Match Reveal Component
 const MatchReveal = ({ 
   isOpen, 
   onClose, 
@@ -31,123 +31,128 @@ const MatchReveal = ({
 }) => {
   useEffect(() => {
     if (isOpen && navigator.vibrate) {
-      // Strong haptic for match reveal
       navigator.vibrate([100, 50, 100, 50, 200]);
     }
   }, [isOpen]);
 
+  // Handle click outside the card
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center"
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      onClick={handleBackdropClick}
+      className="absolute inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    >
+      {/* Match Card */}
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 40 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 40 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="relative w-[320px] mx-4 rounded-3xl bg-card shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* CSS-based floating hearts background */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-rose-500/10 to-transparent" />
+          <Heart className="heart-float heart-1 text-rose-400 fill-rose-300" />
+          <Heart className="heart-float heart-2 text-pink-400 fill-pink-300" />
+          <Heart className="heart-float heart-3 text-red-400 fill-red-300" />
+          <Heart className="heart-float heart-4 text-rose-400 fill-rose-300" />
+          <Heart className="heart-float heart-5 text-pink-400 fill-pink-300" />
+          <Heart className="heart-float heart-6 text-rose-400 fill-rose-300" />
+          <Heart className="heart-float heart-7 text-red-400 fill-red-300" />
+          <Heart className="heart-float heart-8 text-pink-400 fill-pink-300" />
+          <Heart className="heart-float heart-9 text-rose-400 fill-rose-300" />
+          <Heart className="heart-float heart-10 text-pink-400 fill-pink-300" />
+          <Heart className="heart-float heart-11 text-red-400 fill-red-300" />
+          <Heart className="heart-float heart-12 text-rose-400 fill-rose-300" />
+          <Heart className="heart-float heart-13 text-pink-400 fill-pink-300" />
+          <Heart className="heart-float heart-14 text-rose-400 fill-rose-300" />
+          <Heart className="heart-float heart-15 text-red-400 fill-red-300" />
+        </div>
+
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 text-muted-foreground hover:text-foreground p-1 bg-background/50 rounded-full"
         >
-          {/* Background overlay */}
-          <motion.div 
-            initial={{ backgroundColor: "rgba(0,0,0,0)" }}
-            animate={{ backgroundColor: "rgba(0,0,0,0.9)" }}
-            exit={{ backgroundColor: "rgba(0,0,0,0)" }}
-            className="absolute inset-0"
-            onClick={onClose}
-          />
-          
-          {/* Animated hearts background */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {[...Array(12)].map((_, i) => (
-              <motion.div
-                key={i}
-                initial={{ 
-                  x: Math.random() * window.innerWidth,
-                  y: window.innerHeight + 50,
-                  scale: 0,
-                  opacity: 0
-                }}
-                animate={{ 
-                  y: -50,
-                  scale: [0, 1, 0.5],
-                  opacity: [0, 1, 0]
-                }}
-                transition={{ 
-                  duration: 3 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 2,
-                  ease: "easeOut"
-                }}
-                className="absolute"
-                style={{ left: `${Math.random() * 100}%` }}
-              >
-                <Heart className="w-6 h-6 text-[#FF2D55] fill-[#FF2D55] opacity-50" />
-              </motion.div>
-            ))}
-          </div>
+          <X className="w-5 h-5" />
+        </button>
 
-          {/* Match content */}
+        {/* Card Content */}
+        <div className="relative p-6 pt-8 text-center">
           <motion.div
-            initial={{ scale: 0, y: 50 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0, y: 50 }}
-            transition={{ type: "spring", damping: 15, stiffness: 200 }}
-            className="relative z-10 text-center px-6"
+            animate={{ 
+              scale: [1, 1.05, 1],
+            }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mb-3"
           >
-            <motion.div
-              animate={{ 
-                scale: [1, 1.1, 1],
-                rotate: [0, 5, -5, 0]
-              }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="mb-6"
-            >
-              <div className="text-6xl mb-2">🎉</div>
-              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#FF2D55] to-[#FF6B8A] bg-clip-text text-transparent">
-                IT'S A MATCH!
-              </h2>
-            </motion.div>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-lg text-muted-foreground mb-8"
-            >
-              You and <span className="text-foreground font-semibold">{matchedUserName}</span> liked each other!
-            </motion.p>
-
-            {/* Avatar with glow */}
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.3, type: "spring" }}
-              className="mb-8"
-            >
-              <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-br from-primary-light to-primary p-1 shadow-[0_0_40px_rgba(46,125,87,0.5)]">
-                <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
-                  {matchedUserAvatar ? (
-                    <img src={matchedUserAvatar} alt={matchedUserName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-5xl font-bold text-white">
-                      {matchedUserName.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              onClick={onClose}
-              className="px-8 py-3 bg-gradient-to-r from-primary-light to-primary text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-            >
-              Start Chatting 💬
-            </motion.button>
+            <div className="text-4xl mb-1">🎉</div>
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-[#FF2D55] to-[#FF6B8A] bg-clip-text text-transparent">
+              IT'S A MATCH!
+            </h2>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+
+          <p className="text-sm text-muted-foreground mb-4">
+            You and <span className="text-foreground font-semibold">{matchedUserName}</span> liked each other!
+          </p>
+
+          {/* Avatar with glow */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+            className="mb-4"
+          >
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-primary-light to-primary p-0.5 shadow-[0_0_25px_rgba(255,45,85,0.4)]">
+              <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
+                {matchedUserAvatar ? (
+                  <img src={matchedUserAvatar} alt={matchedUserName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-bold text-white">
+                    {matchedUserName.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="w-full py-2.5 bg-gradient-to-r from-primary-light to-primary text-white text-sm font-semibold rounded-full shadow-md hover:shadow-lg transition-all duration-200"
+          >
+            Start Chatting 💬
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -326,19 +331,26 @@ const Discover = () => {
 
         if (error) throw error;
 
-        // Check for mutual match
-        const { data: matchCheck } = await supabase
-          .from("crushes")
-          .select("id, sender_id")
-          .eq("sender_id", userId)
-          .eq("receiver_id", currentUserId)
-          .single();
+        // Check for mutual match using a different approach
+        try {
+          // First insert the crush, then check for mutual
+          const { data: matchCheck } = await supabase
+            .from("crushes")
+            .select("*")
+            .eq("sender_id", userId)
+            .eq("receiver_id", currentUserId);
+        
+        console.log("Match check result:", matchCheck);
 
         setSelectedCrushes([...selectedCrushes, userId]);
         setExistingCrushes([...existingCrushes, userId]);
         
-        if (matchCheck) {
+        // Check if they already had a crush on you (mutual)
+        const isMutual = matchCheck && matchCheck.length > 0;
+        
+        if (isMutual) {
           // It's a match! Show the match reveal animation
+          console.log("It's a match! Showing popup...");
           const matchedUserData = users.find(u => u.id === userId);
           if (matchedUserData) {
             setMatchedUser({
@@ -349,10 +361,20 @@ const Discover = () => {
           }
           
           toast({
-            title: "🎉 It's a Match! ❤️",
-            description: "You both like each other! Check your Matches page.",
+            title: "🎉 CONGRATULATIONS  ❤️",
+            description: "YOU FOUND YOURSELF A PARTNER 💕",
           });
         } else {
+          toast({
+            title: "Crush Added! ❤️",
+            description: "They'll never know unless it's mutual.",
+          });
+        }
+        } catch (err) {
+          console.error("Match check error:", err);
+          // Still add the crush even if match check fails
+          setSelectedCrushes([...selectedCrushes, userId]);
+          setExistingCrushes([...existingCrushes, userId]);
           toast({
             title: "Crush Added! ❤️",
             description: "They'll never know unless it's mutual.",
@@ -409,7 +431,7 @@ const Discover = () => {
   const clearSearch = () => setSearchQuery("");
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="relative min-h-screen bg-background pb-20 md:pb-0">
       <main className="relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-8">
         {/* Header */}
         <motion.div
@@ -425,6 +447,16 @@ const Discover = () => {
             Browse people from your community. Tap the heart to select your crush.
           </p>
         </motion.div>
+
+        {/* Match Reveal - Inline in Discover page */}
+        <AnimatePresence>
+          <MatchReveal
+            isOpen={showMatchReveal}
+            onClose={() => setShowMatchReveal(false)}
+            matchedUserName={matchedUser?.name || ""}
+            matchedUserAvatar={matchedUser?.avatar_url}
+          />
+        </AnimatePresence>
 
         {/* Search & Filter */}
         <motion.div
@@ -555,7 +587,7 @@ const Discover = () => {
             </Card>
           </motion.div>
         )}
-        </main>
+      </main>
 
       {/* Someone has a crush on you notification */}
       <AnimatePresence>
@@ -576,14 +608,6 @@ const Discover = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Match Reveal Animation */}
-      <MatchReveal
-        isOpen={showMatchReveal}
-        onClose={() => setShowMatchReveal(false)}
-        matchedUserName={matchedUser?.name || ""}
-        matchedUserAvatar={matchedUser?.avatar_url}
-      />
     </div>
   );
 };

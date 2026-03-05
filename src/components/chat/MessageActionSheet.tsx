@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, 
@@ -6,14 +5,8 @@ import {
   Forward, 
   Copy, 
   Languages, 
-  Trash2,
-  Heart,
-  ThumbsUp,
-  CircleDot,
-  Frown,
-  Angry
+  Trash2
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface MessageActionSheetProps {
   isVisible: boolean;
@@ -24,20 +17,9 @@ interface MessageActionSheetProps {
   onCopy: () => void;
   onTranslate: () => void;
   onUnsend: () => void;
-  onReaction: (reaction: string) => void;
   messageContent?: string;
   isOwnMessage?: boolean;
 }
-
-// Super react emoji options
-const SUPER_REACTIONS = [
-  { emoji: "❤️", icon: Heart, label: "Love" },
-  { emoji: "👍", icon: ThumbsUp, label: "Like" },
-  { emoji: "😂", icon: CircleDot, label: "Laugh" },
-  { emoji: "😮", icon: Frown, label: "Wow" },
-  { emoji: "😢", icon: CircleDot, label: "Sad" },
-  { emoji: "😡", icon: Angry, label: "Angry" },
-];
 
 const MessageActionSheet = ({
   isVisible,
@@ -48,10 +30,8 @@ const MessageActionSheet = ({
   onCopy,
   onTranslate,
   onUnsend,
-  onReaction,
   isOwnMessage = false,
 }: MessageActionSheetProps) => {
-  const [selectedReaction, setSelectedReaction] = useState<string | null>(null);
 
   const handleAction = (action: string) => {
     switch (action) {
@@ -72,19 +52,6 @@ const MessageActionSheet = ({
         break;
     }
     onClose();
-  };
-
-  const handleReaction = (emoji: string) => {
-    setSelectedReaction(emoji);
-    onReaction(emoji);
-    // Haptic feedback
-    if (navigator.vibrate) {
-      navigator.vibrate(10);
-    }
-    setTimeout(() => {
-      setSelectedReaction(null);
-      onClose();
-    }, 300);
   };
 
   return (
@@ -112,32 +79,7 @@ const MessageActionSheet = ({
               width: '90%'
             }}
           >
-            {/* Super React Bar - Horizontal white container at top */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="bg-white rounded-2xl shadow-xl border border-gray-100 p-2 mb-2"
-            >
-              <div className="flex items-center justify-around gap-1">
-                {SUPER_REACTIONS.map(({ emoji, icon: Icon, label }) => (
-                  <button
-                    key={label}
-                    onClick={() => handleReaction(emoji)}
-                    className={cn(
-                      "flex flex-col items-center justify-center w-12 h-12 rounded-xl",
-                      "hover:bg-gray-100 transition-all duration-200",
-                      "active:scale-90",
-                      selectedReaction === emoji && "bg-red-50 scale-110"
-                    )}
-                  >
-                    <span className="text-2xl">{emoji}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Vertical Dropdown Menu - White with options */}
+            {/* Vertical Dropdown Menu */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -223,59 +165,5 @@ const MessageActionSheet = ({
   );
 };
 
-// Export both the component and demo
 export default MessageActionSheet;
-
-// Demo component with the pastel green background and avocado pattern
-export const MessageActionSheetDemo = () => {
-  const [isSheetVisible, setIsSheetVisible] = useState(true);
-
-  // Pastel green background with avocado/subtle pattern
-  const backgroundStyle = {
-    backgroundColor: '#DCEDC8', // Pastel green (avocado green)
-    backgroundImage: `
-      radial-gradient(circle at 20px 20px, rgba(139, 195, 74, 0.15) 2%, transparent 0%),
-      radial-gradient(circle at 60px 60px, rgba(139, 195, 74, 0.1) 2%, transparent 0%)
-    `,
-    backgroundSize: '80px 80px',
-  };
-
-  return (
-    <div 
-      className="min-h-screen w-full flex items-center justify-center p-4"
-      style={backgroundStyle}
-    >
-      {/* Avocado pattern overlay - subtle leaf-like pattern */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-25"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 10 C30 30 20 50 30 70 C40 90 60 90 70 70 C80 50 70 30 50 10' fill='%238BC34A' fill-opacity='0.3'/%3E%3Ccircle cx='50' cy='60' r='8' fill='%23558B2F' fill-opacity='0.3'/%3E%3C/svg%3E")`,
-          backgroundSize: '60px 60px',
-        }}
-      />
-
-      {/* Message bubble example */}
-      <div className="relative z-10">
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4 max-w-xs border border-white/50">
-          <p className="text-gray-800">Long press on this message to see the action sheet!</p>
-          <p className="text-gray-500 text-sm mt-2">Tap anywhere to toggle</p>
-        </div>
-      </div>
-
-      {/* Action Sheet */}
-      <MessageActionSheet
-        isVisible={isSheetVisible}
-        onClose={() => setIsSheetVisible(false)}
-        onReply={() => console.log("Reply")}
-        onAddSticker={() => console.log("Add sticker")}
-        onForward={() => console.log("Forward")}
-        onCopy={() => console.log("Copy")}
-        onTranslate={() => console.log("Translate")}
-        onUnsend={() => console.log("Unsend")}
-        onReaction={(reaction) => console.log("Reaction:", reaction)}
-        isOwnMessage={false}
-      />
-    </div>
-  );
-};
 

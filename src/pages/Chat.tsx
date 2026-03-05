@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion"; 
 import { 
   ArrowLeft, Check, CheckCheck, Trash2, Reply, X,
-  Mic, Image, Copy
+  Image, Copy
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -14,13 +14,9 @@ import {
   MessageInput, 
   TypingIndicator, 
   ChatLoadingSkeleton,
-  MessageReactions,
-  ReactionBadge,
   MediaPreview,
-  MessageActionSheet,
   FullscreenImage,
 } from "@/components/chat";
-import { MediaItem, uriToBase64 } from "@/hooks/useMediaPicker";
 
 interface Message {
   id: string;
@@ -33,7 +29,6 @@ interface Message {
   is_unsent?: boolean;
   reply_to_id?: string | null;
   reply_to_content?: string;
-  reactions?: string[];
 }
 
 interface MatchInfo {
@@ -43,8 +38,6 @@ interface MatchInfo {
   isOnline?: boolean;
 }
 
-// Quick reactions for Instagram-like popup
-const QUICK_REACTIONS = ["❤️", "👍", "😂", "😮", "😢", "🔥"];
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -110,15 +103,12 @@ const Chat = () => {
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Media preview
-  const [pendingFiles, setPendingFiles] = useState<{file: File; preview: string; type: 'image' | 'video' | 'audio' | 'file'}[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<{file: File; preview: string; type: 'image' | 'video' | 'file'}[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Fullscreen image viewer
   const [fullscreenImage, setFullscreenImage] = useState<{src: string; isOpen: boolean}>({ src: '', isOpen: false });
-
-  // Audio player
-  const [audioPlayer, setAudioPlayer] = useState<{src: string; isOpen: boolean}>({ src: '', isOpen: false });
 
   // Keyboard detection for proper padding
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -224,7 +214,7 @@ const Chat = () => {
     const newFiles = Array.from(files).map(file => ({
       file,
       preview: URL.createObjectURL(file),
-      type: (file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image') as 'image' | 'video' | 'audio' | 'file'
+      type: (file.type.startsWith('video/') ? 'video' : 'image') as 'image' | 'video' | 'file'
     }));
     
     setPendingFiles(prev => [...prev, ...newFiles]);
@@ -241,7 +231,7 @@ const Chat = () => {
 
   const sendPendingFiles = async () => {
     for (const fileData of pendingFiles) {
-      await uploadAndSendMedia(fileData.file, fileData.type as 'image' | 'video' | 'audio');
+      await uploadAndSendMedia(fileData.file, fileData.type as 'image' | 'video');
     }
     setPendingFiles([]);
   };
@@ -265,7 +255,7 @@ const Chat = () => {
 
         const { data: messagesData } = await supabase
           .from("messages")
-          .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id, reactions")
+          .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id")
           .or(`and(sender_id.eq.${user.id},receiver_id.eq.${matchId}),and(sender_id.eq.${matchId},receiver_id.eq.${user.id})`)
           .or("is_unsent.is.null,is_unsent.eq.false")
           .order("created_at", { ascending: true });
@@ -279,31 +269,19 @@ const Chat = () => {
           
           const messagesWithReplies = await Promise.all(
             filteredMessages.map(async (msg) => {
-              // Parse reactions from database (stored as JSON string or JSONB)
-              let reactions: string[] = [];
-              if (msg.reactions) {
-                if (typeof msg.reactions === 'string') {
-                  try {
-                    reactions = JSON.parse(msg.reactions);
-                  } catch { reactions = []; }
-                } else if (Array.isArray(msg.reactions)) {
-                  reactions = msg.reactions;
-                }
-              }
-              
               if (msg.reply_to_id) {
                 // Check if the replied message was also deleted
                 if (deletedMessageIdsRef.current.has(msg.reply_to_id) || deletedForMeIdsRef.current.has(msg.reply_to_id)) {
-                  return { ...msg, reply_to_id: null, reply_to_content: "Message", reactions };
+                  return { ...msg, reply_to_id: null, reply_to_content: "Message" };
                 }
                 const { data: replyMsg } = await supabase
                   .from("messages")
                   .select("content")
                   .eq("id", msg.reply_to_id)
                   .single();
-                return { ...msg, reply_to_content: replyMsg?.content || "Message", reactions };
+                return { ...msg, reply_to_content: replyMsg?.content || "Message" };
               }
-              return { ...msg, reactions };
+              return msg;
             })
           );
           setMessages(messagesWithReplies);
@@ -335,23 +313,6 @@ const Chat = () => {
           }
         );
         
-        // Listen for broadcast messages (reaction notifications)
-        chatChannel.on(
-          'broadcast',
-          { event: 'reaction' },
-          ({ payload }) => {
-            console.log('Received reaction broadcast:', payload);
-            if (payload && payload.messageId && payload.reactions) {
-              // Update the message with the new reactions
-              setMessages(prev => prev.map(msg => 
-                msg.id === payload.messageId 
-                  ? { ...msg, reactions: payload.reactions } 
-                  : msg
-              ));
-            }
-          }
-        ).subscribe();
-        
         // Also listen for INSERT events
         chatChannel.on(
           "postgres_changes",
@@ -364,7 +325,7 @@ const Chat = () => {
               if (!deletedMessageIdsRef.current.has(newMsg.id) && 
                   !deletedForMeIdsRef.current.has(newMsg.id) &&
                   !(newMsg as any).is_unsent) {
-                setMessages(prev => [...prev, { ...newMsg, reactions: [] }]); 
+                setMessages(prev => [...prev, newMsg]); 
                 setIsOtherUserTyping(true);
                 setTimeout(() => setIsOtherUserTyping(false), 2000);
               }
@@ -488,7 +449,6 @@ const Chat = () => {
         created_at: data?.created_at || new Date().toISOString(),
         reply_to_id: replyToMessage?.id || null,
         reply_to_content: replyToMessage?.content,
-        reactions: []
       }]);
     } catch (error) { console.error("Error sending message:", error); }
     finally { setSending(false); }
@@ -497,47 +457,12 @@ const Chat = () => {
   const handleMediaSelect = async (files: FileList) => {
     const fileArray = Array.from(files);
     for (const file of fileArray) {
-      const type = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image';
-      await uploadAndSendMedia(file, type as 'image' | 'video' | 'audio');
+      const type = file.type.startsWith('video/') ? 'video' : 'image';
+      await uploadAndSendMedia(file, type as 'image' | 'video');
     }
   };
 
-  // Handle media selection from the MediaPicker component
-  const handleMediaPickerSelect = async (items: MediaItem[]) => {
-    for (const item of items) {
-      try {
-        setUploading(true);
-        setUploadProgress(0);
-        
-        // Convert URI to blob and then upload
-        const response = await fetch(item.uri);
-        const blob = await response.blob();
-        
-        // Determine file extension from URI
-        const ext = item.uri.split('.').pop()?.split('?')[0] || 'jpg';
-        const mimeType = item.type === 'video' ? 'video/mp4' : 'image/jpeg';
-        const fileName = `${Date.now()}_media.${ext}`;
-        
-        // Create File from Blob
-        const file = new File([blob], fileName, { type: mimeType });
-        
-        const type = item.type;
-        await uploadAndSendMedia(file, type);
-      } catch (error) {
-        console.error("Error processing media:", error);
-        sendMessage(`[${item.type}]`);
-      }
-    }
-    setUploading(false);
-    setUploadProgress(0);
-  };
-
-  const handleVoiceRecord = async (blob: Blob, duration: number) => {
-    const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
-    await uploadAndSendMedia(file, 'audio');
-  };
-
-  const uploadAndSendMedia = async (file: File, type: 'image' | 'video' | 'audio') => {
+  const uploadAndSendMedia = async (file: File, type: 'image' | 'video') => {
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -560,70 +485,6 @@ const Chat = () => {
     finally { 
       setUploading(false); 
       setUploadProgress(0); 
-    }
-  };
-
-  const handleReaction = async (messageId: string, reaction: string) => {
-    // First, get the current reactions for this message from the message in state
-    const message = messages.find(m => m.id === messageId);
-    const currentReactions = message?.reactions || [];
-    
-    // Update local state immediately for responsiveness
-    setMessages(prev => prev.map(msg => {
-      if (msg.id === messageId) {
-        const reactions = msg.reactions || [];
-        if (reactions.includes(reaction)) {
-          return { ...msg, reactions: reactions.filter(r => r !== reaction) };
-        }
-        return { ...msg, reactions: [...reactions, reaction] };
-      }
-      return msg;
-    }));
-    
-    // Now save to database and broadcast to other user
-    try {
-      // Get the current reactions from database to avoid overwriting
-      const { data: msgData } = await supabase
-        .from("messages")
-        .select("reactions")
-        .eq("id", messageId)
-        .single();
-      
-      let newReactions: string[] = [];
-      if (msgData?.reactions && Array.isArray(msgData.reactions)) {
-        // reactions is stored as JSON array
-        newReactions = msgData.reactions;
-      } else if (msgData?.reactions && typeof msgData.reactions === 'object') {
-        // Handle case where reactions might be stored as object
-        newReactions = (msgData.reactions as any).reactions || [];
-      }
-      
-      // Toggle reaction
-      if (currentReactions.includes(reaction)) {
-        newReactions = newReactions.filter(r => r !== reaction);
-      } else {
-        newReactions = [...newReactions, reaction];
-      }
-      
-      // Save to database
-      await supabase
-        .from("messages")
-        .update({ reactions: JSON.stringify(newReactions) })
-        .eq("id", messageId);
-      
-      // Broadcast reaction to the other user via realtime
-      const broadcastChannel = supabase.channel(`chat:${matchId}`);
-      await broadcastChannel.send({
-        type: 'broadcast',
-        event: 'reaction',
-        payload: { 
-          messageId, 
-          reactions: newReactions,
-          userId: currentUserId
-        }
-      });
-    } catch (error) {
-      console.error("Error saving reaction:", error);
     }
   };
 
@@ -774,16 +635,6 @@ const Chat = () => {
     }
   };
 
-  const handleQuickReaction = async (e: React.MouseEvent | React.TouchEvent | React.PointerEvent, messageId: string, reaction: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    await handleReaction(messageId, reaction);
-    setLongPressPopup(null);
-    if (navigator.vibrate) {
-      navigator.vibrate(10);
-    }
-  };
-
   // Handle reply from popup
   const handlePopupReply = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     e.preventDefault();
@@ -883,7 +734,7 @@ const Chat = () => {
             <div className="bg-card border-2 border-dashed border-primary rounded-2xl p-8 text-center">
               <Image className="w-12 h-12 mx-auto mb-4 text-primary" />
               <p className="text-lg font-semibold">Drop files to send</p>
-              <p className="text-sm text-muted-foreground">Images, videos, or audio</p>
+              <p className="text-sm text-muted-foreground">Images or videos</p>
             </div>
           </motion.div>
         )}
@@ -1117,11 +968,6 @@ const Chat = () => {
                         </div>
                       )}
                       
-                      {/* Reactions badge */}
-                      {message.reactions && message.reactions.length > 0 && (
-                        <ReactionBadge reactions={message.reactions} className="mt-1" />
-                      )}
-                      
                       {/* Time and read receipts - only show when message is selected */}
                       {isSelected && (
                         <motion.div
@@ -1160,7 +1006,7 @@ const Chat = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Instagram-like Popup - Combined Reactions + Options */}
+      {/* Popup - Options Only (No Reactions) */}
       <AnimatePresence>
         {longPressPopup && (
           <>
@@ -1173,7 +1019,7 @@ const Chat = () => {
               onClick={() => setLongPressPopup(null)}
             />
             
-            {/* Popup Container - 80% Width */}
+            {/* Popup Container */}
             <motion.div
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1185,28 +1031,7 @@ const Chat = () => {
                 className="w-[75%] max-w-[320px] bg-white rounded-3xl shadow-2xl border border-white/20 overflow-hidden" 
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Quick Reactions Row - Compact */}
-                <div className="flex items-center justify-around gap-1 px-2 py-3 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-                  {/* Default reactions */}
-                  {QUICK_REACTIONS.map((reaction, index) => (
-                    <motion.button
-                      key={`default-${reaction}`}
-                      type="button"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: index * 0.05 }}
-                      onPointerDown={(e) => handleQuickReaction(e, longPressPopup.messageId, reaction)}
-                      className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all hover:scale-125 active:scale-90 text-xl shadow-sm touch-action-manipulation"
-                    >
-                      {reaction}
-                    </motion.button>
-                  ))}
-                </div>
-                
-                {/* Divider Line */}
-                <div className="h-px bg-gray-200 mx-4" />
-                
-                {/* Action Buttons - Compact Vertical Layout */}
+                {/* Action Buttons */}
                 <div className="bg-white py-1">
                   {/* Reply */}
                   <button
@@ -1232,7 +1057,7 @@ const Chat = () => {
                     <span className="text-gray-700 font-medium text-sm">Copy</span>
                   </button>
                   
-                  {/* Delete for Me - shown for all messages */}
+                  {/* Delete for Me */}
                   <button
                     type="button"
                     onPointerDown={(e) => {
@@ -1322,7 +1147,7 @@ const Chat = () => {
       <input 
         ref={mediaInputRef} 
         type="file" 
-        accept="image/*,video/*,audio/*" 
+        accept="image/*,video/*" 
         multiple
         className="hidden" 
         onChange={(e) => handleMediaSelect(e.target.files!)} 
