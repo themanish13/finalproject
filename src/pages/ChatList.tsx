@@ -48,9 +48,10 @@ const ChatList = () => {
       setCurrentUserId(user.id);
 
       // Get all users the current user has exchanged messages with
+      // Exclude unsent messages and messages deleted for the current user
       const { data: messagesData } = await supabase
         .from("messages")
-        .select("sender_id, receiver_id, content, created_at, read_at")
+        .select("sender_id, receiver_id, content, created_at, read_at, is_unsent, deleted_for_sender, deleted_for_receiver")
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
 
@@ -60,6 +61,11 @@ const ChatList = () => {
       
       if (messagesData) {
         messagesData.forEach(msg => {
+          // Skip messages that are unsent or deleted for current user
+          if (msg.is_unsent) return;
+          if (msg.sender_id !== user.id && msg.deleted_for_receiver) return;
+          if (msg.sender_id === user.id && msg.deleted_for_sender) return;
+          
           const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
           userIds.add(otherUserId);
           
@@ -87,9 +93,12 @@ const ChatList = () => {
           const profile = profiles?.find(p => p.id === userId);
           const lastMsg = userLastMessages[userId];
           
-          // Get unread count
+          // Get unread count (excluding deleted messages)
           const unreadCount = messagesData?.filter(
-            msg => msg.sender_id === userId && msg.receiver_id === user.id && !msg.read_at
+            msg => msg.sender_id === userId && msg.receiver_id === user.id && 
+                   !msg.read_at && !msg.is_unsent && 
+                   !(msg.sender_id !== user.id && msg.deleted_for_receiver) &&
+                   !(msg.sender_id === user.id && msg.deleted_for_sender)
           ).length || 0;
 
           return {

@@ -265,7 +265,7 @@ const Chat = () => {
 
         const { data: messagesData } = await supabase
           .from("messages")
-          .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id")
+          .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id, reactions")
           .or(`and(sender_id.eq.${user.id},receiver_id.eq.${matchId}),and(sender_id.eq.${matchId},receiver_id.eq.${user.id})`)
           .or("is_unsent.is.null,is_unsent.eq.false")
           .order("created_at", { ascending: true });
@@ -279,19 +279,31 @@ const Chat = () => {
           
           const messagesWithReplies = await Promise.all(
             filteredMessages.map(async (msg) => {
+              // Parse reactions from database (stored as JSON string or JSONB)
+              let reactions: string[] = [];
+              if (msg.reactions) {
+                if (typeof msg.reactions === 'string') {
+                  try {
+                    reactions = JSON.parse(msg.reactions);
+                  } catch { reactions = []; }
+                } else if (Array.isArray(msg.reactions)) {
+                  reactions = msg.reactions;
+                }
+              }
+              
               if (msg.reply_to_id) {
                 // Check if the replied message was also deleted
                 if (deletedMessageIdsRef.current.has(msg.reply_to_id) || deletedForMeIdsRef.current.has(msg.reply_to_id)) {
-                  return { ...msg, reply_to_id: null, reply_to_content: "Message", reactions: [] };
+                  return { ...msg, reply_to_id: null, reply_to_content: "Message", reactions };
                 }
                 const { data: replyMsg } = await supabase
                   .from("messages")
                   .select("content")
                   .eq("id", msg.reply_to_id)
                   .single();
-                return { ...msg, reply_to_content: replyMsg?.content || "Message", reactions: [] };
+                return { ...msg, reply_to_content: replyMsg?.content || "Message", reactions };
               }
-              return { ...msg, reactions: [] };
+              return { ...msg, reactions };
             })
           );
           setMessages(messagesWithReplies);
@@ -319,6 +331,23 @@ const Chat = () => {
               } catch (e) { /* ignore */ }
               // Remove from UI
               setMessages(prev => prev.filter(msg => msg.id !== payload.messageId));
+            }
+          }
+        );
+        
+        // Listen for broadcast messages (reaction notifications)
+        chatChannel.on(
+          'broadcast',
+          { event: 'reaction' },
+          ({ payload }) => {
+            console.log('Received reaction broadcast:', payload);
+            if (payload && payload.messageId && payload.reactions) {
+              // Update the message with the new reactions
+              setMessages(prev => prev.map(msg => 
+                msg.id === payload.messageId 
+                  ? { ...msg, reactions: payload.reactions } 
+                  : msg
+              ));
             }
           }
         ).subscribe();
@@ -535,6 +564,11 @@ const Chat = () => {
   };
 
   const handleReaction = async (messageId: string, reaction: string) => {
+    // First, get the current reactions for this message from the message in state
+    const message = messages.find(m => m.id === messageId);
+    const currentReactions = message?.reactions || [];
+    
+    // Update local state immediately for responsiveness
     setMessages(prev => prev.map(msg => {
       if (msg.id === messageId) {
         const reactions = msg.reactions || [];
@@ -545,6 +579,52 @@ const Chat = () => {
       }
       return msg;
     }));
+    
+    // Now save to database and broadcast to other user
+    try {
+      // Get the current reactions from database to avoid overwriting
+      const { data: msgData } = await supabase
+        .from("messages")
+        .select("reactions")
+        .eq("id", messageId)
+        .single();
+      
+      let newReactions: string[] = [];
+      if (msgData?.reactions && Array.isArray(msgData.reactions)) {
+        // reactions is stored as JSON array
+        newReactions = msgData.reactions;
+      } else if (msgData?.reactions && typeof msgData.reactions === 'object') {
+        // Handle case where reactions might be stored as object
+        newReactions = (msgData.reactions as any).reactions || [];
+      }
+      
+      // Toggle reaction
+      if (currentReactions.includes(reaction)) {
+        newReactions = newReactions.filter(r => r !== reaction);
+      } else {
+        newReactions = [...newReactions, reaction];
+      }
+      
+      // Save to database
+      await supabase
+        .from("messages")
+        .update({ reactions: JSON.stringify(newReactions) })
+        .eq("id", messageId);
+      
+      // Broadcast reaction to the other user via realtime
+      const broadcastChannel = supabase.channel(`chat:${matchId}`);
+      await broadcastChannel.send({
+        type: 'broadcast',
+        event: 'reaction',
+        payload: { 
+          messageId, 
+          reactions: newReactions,
+          userId: currentUserId
+        }
+      });
+    } catch (error) {
+      console.error("Error saving reaction:", error);
+    }
   };
 
   const handleUnsendMessage = async (messageId: string) => {
