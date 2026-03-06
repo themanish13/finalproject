@@ -93,7 +93,7 @@ export const useAuth = () => {
     if (!initialized) {
       initializeAuth();
     }
-  }, [initialized]);
+  }, [initializeAuth, initialized]);
 
   // Set up auth state listener
   useEffect(() => {
