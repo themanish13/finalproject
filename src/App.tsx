@@ -3,7 +3,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import { useAuth, useAuthStore } from "@/hooks/useAuth";
+
+const routerFutureConfig = {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  },
+};
 import { useEffect } from "react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
@@ -121,7 +129,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={routerFutureConfig.future}>
         <AuthLoader>
           <AppRoutes />
         </AuthLoader>
