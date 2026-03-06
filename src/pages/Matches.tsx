@@ -155,17 +155,14 @@ const Matches = () => {
 
         {/* Loading State */}
         {loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--secondary)', borderColor: 'var(--border)' }}>
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="relative w-20 h-20">
+              <span className="z-loading z-1">Z</span>
+              <span className="z-loading z-2">Z</span>
+              <span className="z-loading z-3">Z</span>
+              <span className="z-loading z-4">Z</span>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Loading matches...</h3>
-            <p className="text-muted-foreground text-sm">Checking your mutual connections</p>
-          </motion.div>
+          </div>
         )}
 
         {/* Matches List */}

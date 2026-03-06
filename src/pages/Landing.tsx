@@ -3,9 +3,19 @@ import { Heart, Shield, Eye, EyeOff, Sparkles, Users, Lock, Zap, ArrowRight } fr
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/hooks/useAuth";
+import { useEffect } from "react";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { user, initialized } = useAuthStore();
+  
+  // Redirect authenticated users to discover
+  useEffect(() => {
+    if (initialized && user) {
+      navigate("/discover", { replace: true });
+    }
+  }, [user, initialized, navigate]);
 
   const features = [
     {
@@ -202,7 +212,7 @@ const Landing = () => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card variant="glass-hover" className="p-5 md:p-6 h-full">
+              <Card variant="glass" className="p-5 md:p-6 h-full">
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
                   <feature.icon className="w-6 h-6 text-primary" />
                 </div>

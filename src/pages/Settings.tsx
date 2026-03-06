@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import AvatarUpload from "@/components/AvatarUpload";
 import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { signOut, user } = useAuthStore();
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
@@ -141,7 +143,7 @@ const Settings = () => {
 
   const confirmLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      await signOut();
       toast({
         title: "Logged Out",
         description: "You have been signed out.",

@@ -68,11 +68,6 @@ const ChatListItem = ({
             </div>
           )}
         </div>
-        
-        {/* Online indicator */}
-        {isOnline && (
-          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-green-500 ring-2 ring-card" />
-        )}
       </div>
 
       {/* Message Info */}

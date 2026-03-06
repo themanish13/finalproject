@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion"; 
 import { 
   ArrowLeft, Check, CheckCheck, Trash2, Reply, X,
@@ -13,31 +13,26 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { 
   MessageInput, 
   TypingIndicator, 
-  ChatLoadingSkeleton,
   MediaPreview,
   FullscreenImage,
 } from "@/components/chat";
 
-interface Message {
-  id: string;
-  sender_id: string;
-  content: string;
-  media_url?: string;
-  media_type?: string;
-  read_at?: string | null;
-  created_at: string;
-  is_unsent?: boolean;
-  reply_to_id?: string | null;
-  reply_to_content?: string;
-}
+// Store
+import { useChatStore, ChatMessage } from "@/store/chatStore";
+
+// Hooks
+import { useChatRealtime } from "@/hooks/useChatRealtime";
 
 interface MatchInfo {
   id: string;
   name: string;
   avatar_url?: string;
-  isOnline?: boolean;
 }
 
+// Local interface for message display (extends ChatMessage)
+interface Message extends ChatMessage {
+  reply_to_content?: string;
+}
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -50,6 +45,29 @@ const Chat = () => {
   const searchParams = new URLSearchParams(location.search);
   const matchId = searchParams.get("matchId");
 
+  // Zustand store - single source of truth
+  const {
+    messages: storeMessages,
+    isLoading,
+    isAtBottom,
+    setLoading,
+    addMessage,
+    setMessages,
+    updateMessage,
+    removeMessage,
+    setCurrentChat,
+    clearChat,
+    addOptimisticMessage,
+    confirmMessage,
+    failMessage,
+    setIsAtBottom,
+    currentUserId: storeCurrentUserId,
+  } = useChatStore();
+
+  // Local state (non-message related)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
+  
   // Load deleted message IDs from localStorage on mount
   const getInitialDeletedIds = (): Set<string> => {
     try {
@@ -60,7 +78,7 @@ const Chat = () => {
     }
   };
   
-  // Load "deleted for me" IDs (messages user deleted for themselves only)
+  // Load "deleted for me" IDs
   const getInitialDeletedForMeIds = (): Set<string> => {
     try {
       const stored = localStorage.getItem(`deleted_for_me_${matchId}`);
@@ -70,21 +88,14 @@ const Chat = () => {
     }
   };
   
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  // Track "deleted for me" IDs - messages user deleted for themselves only (receiver still sees them)
   const [deletedForMeIds, setDeletedForMeIds] = useState<Set<string>>(() => getInitialDeletedForMeIds());
   const deletedForMeIdsRef = useRef<Set<string>>(getInitialDeletedForMeIds());
-  // Track permanently deleted IDs (unsent - both users can't see)
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(() => getInitialDeletedIds());
   const deletedMessageIdsRef = useRef<Set<string>>(getInitialDeletedIds());
-  const [loading, setLoading] = useState(true);
+  
   const [sending, setSending] = useState(false);
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
   
   // Message interactions
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
@@ -92,14 +103,13 @@ const Chat = () => {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   
-  // Long press popup state (Instagram-like)
+  // Long press popup state
   const [longPressPopup, setLongPressPopup] = useState<{
     messageId: string;
     isOwnMessage: boolean;
     messageContent: string;
   } | null>(null);
   
-  // Ref for the long press timer
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Media preview
@@ -110,9 +120,26 @@ const Chat = () => {
   // Fullscreen image viewer
   const [fullscreenImage, setFullscreenImage] = useState<{src: string; isOpen: boolean}>({ src: '', isOpen: false });
 
-  // Keyboard detection for proper padding
+  // Keyboard detection
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   
+  // State for message input
+  const [newMessage, setNewMessage] = useState("");
+  
+  // Track initial load
+  const isInitialLoad = useRef(true);
+  const hasScrolledToBottom = useRef(false);
+
+  // Use realtime hook when we have chat ID and user ID
+  useChatRealtime({
+    chatId: matchId || '',
+    currentUserId: currentUserId || '',
+    onMessageReceived: (message) => {
+      setIsOtherUserTyping(true);
+      setTimeout(() => setIsOtherUserTyping(false), 2000);
+    },
+  });
+
   // Close long press popup when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -125,6 +152,7 @@ const Chat = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [longPressPopup]);
   
+  // Keyboard handling
   useEffect(() => {
     let keyboardTimeout: ReturnType<typeof setTimeout>;
     
@@ -172,8 +200,71 @@ const Chat = () => {
     };
   }, []);
 
-  useEffect(() => { loadChatData(); }, [matchId]);
-  useEffect(() => { scrollToBottom(); }, [messages]);
+  // Reset scroll state when matchId changes
+  useEffect(() => {
+    isInitialLoad.current = true;
+    hasScrolledToBottom.current = false;
+  }, [matchId]);
+
+  // Scroll function
+  const performScrollToBottom = useCallback(() => {
+    const scrollToView = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    };
+    
+    scrollToView();
+    requestAnimationFrame(() => {
+      scrollToView();
+      setTimeout(scrollToView, 150);
+    });
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  // Handle scroll - track if user is at bottom
+  const handleScroll = useCallback(() => {
+    const container = chatContainerRef.current;
+    if (container) {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      const atBottom = distanceFromBottom < 150;
+      
+      if (isAtBottom !== atBottom) {
+        setIsAtBottom(atBottom);
+      }
+    }
+  }, [isAtBottom, setIsAtBottom]);
+
+  // Auto-scroll when new messages arrive (only if user is at bottom)
+  useEffect(() => {
+    if (isLoading || !storeMessages.length) return;
+
+    // Always scroll to bottom on initial load
+    if (isInitialLoad.current && !hasScrolledToBottom.current) {
+      performScrollToBottom();
+      hasScrolledToBottom.current = true;
+      isInitialLoad.current = false;
+      return;
+    }
+
+    // For new messages, only scroll if user is at bottom
+    if (isAtBottom) {
+      // Small delay to allow DOM to update
+      setTimeout(() => {
+        scrollToBottom();
+      }, 50);
+    }
+  }, [storeMessages, isLoading, isAtBottom, performScrollToBottom, scrollToBottom]);
+
+  // Load chat data
+  useEffect(() => { 
+    loadChatData(); 
+    return () => {
+      clearChat();
+    };
+  }, [matchId]);
 
   // Drag and drop handlers
   useEffect(() => {
@@ -205,8 +296,6 @@ const Chat = () => {
       document.removeEventListener('drop', handleDrop);
     };
   }, []);
-
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
   const handleFiles = (files?: FileList) => {
     if (!files) return;
@@ -241,36 +330,38 @@ const Chat = () => {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      
       setCurrentUserId(user.id);
+      setCurrentChat(matchId || '', user.id);
 
       if (matchId) {
+        // Load match profile
         const { data: profile } = await supabase.from("profiles").select("id, name, avatar_url").eq("id", matchId).single();
         if (profile) setMatchInfo({ 
           id: profile.id, 
           name: profile.name, 
           avatar_url: profile.avatar_url,
-          isOnline: Math.random() > 0.3
         });
-        setIsOnline(profile ? Math.random() > 0.3 : false);
 
+        // Load messages
         const { data: messagesData } = await supabase
           .from("messages")
-          .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id")
+          .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id, status, delivered_at")
           .or(`and(sender_id.eq.${user.id},receiver_id.eq.${matchId}),and(sender_id.eq.${matchId},receiver_id.eq.${user.id})`)
           .or("is_unsent.is.null,is_unsent.eq.false")
           .order("created_at", { ascending: true });
         
         if (messagesData) {
-          // Filter out messages that have been permanently deleted (unsent) OR deleted for me
+          // Filter out deleted messages
           const filteredMessages = messagesData.filter(msg => 
             !deletedMessageIdsRef.current.has(msg.id) && 
             !deletedForMeIdsRef.current.has(msg.id)
           );
           
+          // Load reply content
           const messagesWithReplies = await Promise.all(
-            filteredMessages.map(async (msg) => {
+            filteredMessages.map(async (msg: any) => {
               if (msg.reply_to_id) {
-                // Check if the replied message was also deleted
                 if (deletedMessageIdsRef.current.has(msg.reply_to_id) || deletedForMeIdsRef.current.has(msg.reply_to_id)) {
                   return { ...msg, reply_to_id: null, reply_to_content: "Message" };
                 }
@@ -284,128 +375,16 @@ const Chat = () => {
               return msg;
             })
           );
-          setMessages(messagesWithReplies);
+          
+          // Add messages to store
+          setMessages(messagesWithReplies as ChatMessage[]);
         }
 
+        // Mark messages as read
         await supabase.from("messages").update({ read_at: new Date().toISOString() })
           .eq("sender_id", matchId).eq("receiver_id", user.id).is("read_at", null);
-
-        // Create a dedicated channel for real-time chat communication (including unsend)
-        const chatChannel = supabase.channel(`chat:${matchId}`);
-        
-        // Listen for broadcast messages (unsend notifications)
-        chatChannel.on(
-          'broadcast',
-          { event: 'unsend' },
-          ({ payload }) => {
-            console.log('Received unsend broadcast:', payload);
-            if (payload && payload.messageId) {
-              // Add to local deleted IDs and save to localStorage
-              const newDeletedIds = new Set(deletedMessageIdsRef.current).add(payload.messageId);
-              setDeletedMessageIds(newDeletedIds);
-              deletedMessageIdsRef.current = newDeletedIds;
-              try {
-                localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
-              } catch (e) { /* ignore */ }
-              // Remove from UI
-              setMessages(prev => prev.filter(msg => msg.id !== payload.messageId));
-            }
-          }
-        );
-        
-        // Also listen for INSERT events
-        chatChannel.on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${user.id}` },
-          (payload) => { 
-            if (payload.new && (payload.new as Message).sender_id === matchId) {
-              const newMsg = payload.new as Message;
-              // Don't add if this message was deleted locally (unsent or deleted for me)
-              // Also filter out messages that are marked as unsent in the database
-              if (!deletedMessageIdsRef.current.has(newMsg.id) && 
-                  !deletedForMeIdsRef.current.has(newMsg.id) &&
-                  !(newMsg as any).is_unsent) {
-                setMessages(prev => [...prev, newMsg]); 
-                setIsOtherUserTyping(true);
-                setTimeout(() => setIsOtherUserTyping(false), 2000);
-              }
-            }
-          }
-        );
-        
-        // Listen for UPDATE events (including is_unsent)
-        chatChannel.on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "messages" },
-          (payload) => {
-            if (payload.new && (payload.new as Message).id) {
-              const updatedMsg = payload.new as Message;
-              
-              // Check if message was unsent - remove from UI for both users
-              if ((updatedMsg as any).is_unsent === true) {
-                // Add to local deleted IDs and save to localStorage
-                const newDeletedIds = new Set(deletedMessageIdsRef.current).add(updatedMsg.id);
-                setDeletedMessageIds(newDeletedIds);
-                deletedMessageIdsRef.current = newDeletedIds;
-                try {
-                  localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
-                } catch (e) { /* ignore */ }
-                // Remove from UI
-                setMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id));
-                return;
-              }
-              
-              // Check if the other user deleted this message for themselves
-              // If so, add to our local "deleted for me" list and remove from UI
-              const isDeletedForReceiver = updatedMsg.sender_id !== currentUserId && (updatedMsg as any).deleted_for_receiver;
-              const isDeletedForSender = updatedMsg.sender_id === currentUserId && (updatedMsg as any).deleted_for_sender;
-              
-              if (isDeletedForReceiver || isDeletedForSender) {
-                // Add to local deleted IDs and save to localStorage
-                const newDeletedForMeIds = new Set(deletedForMeIdsRef.current).add(updatedMsg.id);
-                setDeletedForMeIds(newDeletedForMeIds);
-                deletedForMeIdsRef.current = newDeletedForMeIds;
-                try {
-                  localStorage.setItem(`deleted_for_me_${matchId}`, JSON.stringify([...newDeletedForMeIds]));
-                } catch (e) { /* ignore */ }
-                // Remove from UI
-                setMessages(prev => prev.filter(msg => msg.id !== updatedMsg.id));
-              } else {
-                setMessages(prev => prev.map(msg => 
-                  msg.id === updatedMsg.id 
-                    ? { ...msg, ...updatedMsg } 
-                    : msg
-                ));
-              }
-            }
-          }
-        );
-        
-        // Legacy: Listen for DELETE events
-        const deleteChannel = supabase.channel(`chat:delete:${matchId}`).on(
-          "postgres_changes",
-          { event: "DELETE", schema: "public", table: "messages" },
-          (payload) => {
-            if (payload.old && (payload.old as any).id) {
-              const deletedId = (payload.old as any).id;
-              // Add to local deleted IDs and save to localStorage
-              const newDeletedIds = new Set(deletedMessageIdsRef.current).add(deletedId);
-              setDeletedMessageIds(newDeletedIds);
-              deletedMessageIdsRef.current = newDeletedIds;
-              try {
-                localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
-              } catch (e) { /* ignore */ }
-              // Remove from UI
-              setMessages(prev => prev.filter(msg => msg.id !== deletedId));
-            }
-          }
-        ).subscribe();
-        
-        return () => { 
-          supabase.removeChannel(chatChannel); 
-          supabase.removeChannel(deleteChannel);
-        };
       } else {
+        // No match ID, try to find a match
         const { data: matchesData } = await supabase.from("matches").select("user1_id, user2_id").or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`).limit(1).single();
         if (matchesData) {
           const matchedUserId = matchesData.user1_id === user.id ? matchesData.user2_id : matchesData.user1_id;
@@ -424,6 +403,18 @@ const Chat = () => {
 
     try {
       setSending(true);
+      
+      // Add optimistic message
+      const tempId = addOptimisticMessage({
+        sender_id: currentUserId,
+        receiver_id: matchId,
+        content: (messageContent?.trim() || `[${mediaType || 'media'}]`) as string,
+        media_url: mediaUrl || undefined,
+        media_type: mediaType || undefined,
+        reply_to_id: replyToMessage?.id || undefined,
+        status: 'sent',
+      });
+      
       const newMessageData = {
         sender_id: currentUserId,
         receiver_id: matchId,
@@ -435,22 +426,22 @@ const Chat = () => {
       
       const { data, error } = await supabase.from("messages").insert(newMessageData).select().single();
       
-      if (error) console.error("Error sending message:", error);
+      if (error) {
+        console.error("Error sending message:", error);
+        failMessage(tempId);
+        return;
+      }
+      
+      // Confirm message with real data
+      confirmMessage(tempId, data.id, data.created_at, data.status || 'sent');
       
       setNewMessage("");
       setReplyToMessage(null);
-      
-      setMessages(prev => [...prev, {
-        id: data?.id || Date.now().toString(),
-        sender_id: currentUserId,
-        content: (messageContent?.trim() || `[${mediaType || 'media'}]`) as string,
-        media_url: mediaUrl,
-        media_type: mediaType,
-        created_at: data?.created_at || new Date().toISOString(),
-        reply_to_id: replyToMessage?.id || null,
-        reply_to_content: replyToMessage?.content,
-      }]);
-    } catch (error) { console.error("Error sending message:", error); }
+    } catch (error) { 
+      console.error("Error sending message:", error); 
+      // Find and fail the optimistic message
+      failMessage(`temp_${Date.now()}_*`);
+    }
     finally { setSending(false); }
   };
 
@@ -490,8 +481,7 @@ const Chat = () => {
 
   const handleUnsendMessage = async (messageId: string) => {
     try {
-      // Soft delete: Mark message as unsent instead of permanently deleting
-      // This ensures realtime notifications are sent to the receiver
+      // Soft delete
       const { error: dbError } = await supabase
         .from("messages")
         .update({ is_unsent: true })
@@ -501,8 +491,7 @@ const Chat = () => {
         console.error("Database update error:", dbError);
       }
       
-      // Send broadcast notification to the receiver using Supabase realtime
-      // This doesn't depend on database realtime being enabled
+      // Broadcast unsend
       const broadcastChannel = supabase.channel(`chat:${matchId}`);
       await broadcastChannel.send({
         type: 'broadcast',
@@ -510,32 +499,28 @@ const Chat = () => {
         payload: { messageId }
       });
       
-      // Track deleted message ID locally to ensure it stays deleted
-      // Also save to localStorage so it persists across page refreshes
+      // Track locally
       const newDeletedIds = new Set(deletedMessageIdsRef.current).add(messageId);
       setDeletedMessageIds(newDeletedIds);
       deletedMessageIdsRef.current = newDeletedIds;
       
-      // Save to localStorage for persistence
       try {
         localStorage.setItem(`deleted_messages_${matchId}`, JSON.stringify([...newDeletedIds]));
       } catch (storageError) {
         console.error("localStorage save error:", storageError);
       }
       
-      // Remove the message from local state completely
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      // Remove from store
+      removeMessage(messageId);
       setSelectedMessageId(null);
     } catch (error) {
       console.error("Error deleting message:", error);
     }
   };
 
-  // Handle "Delete for Me" - only hides message for current user, receiver still sees it
   const handleDeleteForMe = async (messageId: string) => {
     try {
-      // Update the message in DB to mark as deleted for this user
-      const message = messages.find(m => m.id === messageId);
+      const message = storeMessages.find(m => m.id === messageId);
       if (!message) return;
       
       const { error: dbError } = await supabase
@@ -550,7 +535,6 @@ const Chat = () => {
         console.error("Database update error:", dbError);
       }
       
-      // Track "deleted for me" ID locally - save to localStorage
       const newDeletedForMeIds = new Set(deletedForMeIdsRef.current).add(messageId);
       setDeletedForMeIds(newDeletedForMeIds);
       deletedForMeIdsRef.current = newDeletedForMeIds;
@@ -561,8 +545,7 @@ const Chat = () => {
         console.error("localStorage save error:", storageError);
       }
       
-      // Remove from local UI only
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      removeMessage(messageId);
       setSelectedMessageId(null);
     } catch (error) {
       console.error("Error deleting for me:", error);
@@ -576,7 +559,6 @@ const Chat = () => {
   };
 
   const handleMessageClick = (messageId: string) => {
-    console.log('handleMessageClick called with:', messageId);
     if (isMultiSelectMode) {
       const newSelected = new Set(selectedMessages);
       if (newSelected.has(messageId)) {
@@ -596,9 +578,6 @@ const Chat = () => {
   };
 
   const handleMessageLongPress = (messageId: string, isOwnMessage: boolean, messageContent: string) => {
-    console.log("Long press detected for message:", messageId);
-    
-    // Vibrate for feedback
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
@@ -610,9 +589,7 @@ const Chat = () => {
     });
   };
 
-  // Touch handling for mobile long-press
   const handleTouchStart = (e: React.TouchEvent, messageId: string, isOwnMessage: boolean, messageContent: string) => {
-    console.log("Touch started for message:", messageId);
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
     }
@@ -635,20 +612,18 @@ const Chat = () => {
     }
   };
 
-  // Handle reply from popup
   const handlePopupReply = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (longPressPopup) {
-      const message = messages.find(m => m.id === longPressPopup.messageId);
+      const message = storeMessages.find(m => m.id === longPressPopup.messageId);
       if (message) {
-        handleReply(message);
+        handleReply(message as Message);
       }
     }
     setLongPressPopup(null);
   };
 
-  // Handle copy from popup
   const handlePopupCopy = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -658,7 +633,6 @@ const Chat = () => {
     setLongPressPopup(null);
   };
 
-  // Handle delete from popup
   const handlePopupDelete = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -697,21 +671,47 @@ const Chat = () => {
 
   const cancelReply = () => setReplyToMessage(null);
 
-  const groupedMessages = messages.reduce((groups: { date: string; messages: Message[] }[], message) => {
+  // Filter messages for display (remove deleted ones)
+  const displayMessages = storeMessages.filter(msg => 
+    !deletedMessageIds.has(msg.id) && 
+    !deletedForMeIds.has(msg.id)
+  );
+
+  const groupedMessages = displayMessages.reduce((groups: { date: string; messages: Message[] }[], message) => {
     const date = formatDate(message.created_at);
     const existingGroup = groups.find(g => g.date === date);
     if (existingGroup) {
-      existingGroup.messages.push(message);
+      existingGroup.messages.push(message as Message);
     } else {
-      groups.push({ date, messages: [message] });
+      groups.push({ date, messages: [message as Message] });
     }
     return groups;
   }, []);
 
-  if (loading) {
+  // Get status icon component
+  const StatusIcon = ({ status, isOwn }: { status?: string; isOwn: boolean }) => {
+    if (!isOwn) return null;
+    
+    switch (status) {
+      case 'seen':
+        return <CheckCheck className="w-3 h-3 text-blue-400" />;
+      case 'delivered':
+        return <CheckCheck className="w-3 h-3 text-muted-foreground/70" />;
+      case 'sent':
+      default:
+        return <Check className="w-3 h-3 text-muted-foreground/70" />;
+    }
+  };
+
+  if (isLoading && !storeMessages.length) {
     return (
-      <div className="h-[100dvh] bg-background flex flex-col">
-        <ChatLoadingSkeleton />
+      <div className="h-[100dvh] bg-background flex items-center justify-center">
+        <div className="relative w-20 h-20">
+          <span className="z-loading z-1">Z</span>
+          <span className="z-loading z-2">Z</span>
+          <span className="z-loading z-3">Z</span>
+          <span className="z-loading z-4">Z</span>
+        </div>
       </div>
     );
   }
@@ -740,7 +740,7 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* Header - Sticky at top */}
+      {/* Header */}
       <header className="flex-shrink-0 px-4 py-3 flex items-center justify-between bg-card border-b border-border z-10 sticky top-0">
         {isMultiSelectMode ? (
           <div className="flex items-center gap-3 w-full">
@@ -780,24 +780,19 @@ const Chat = () => {
                   {matchInfo?.name?.charAt(0)?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              {isOnline && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full ring-2 ring-card" />
-              )}
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-base">{matchInfo?.name || 'Chat'}</h3>
-              {isOnline && (
-                <p className="text-xs text-green-500">Active Now</p>
-              )}
             </div>
           </div>
         )}
       </header>
 
-      {/* Message Container - Scrollable middle section */}
+      {/* Message Container */}
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto overflow-visible px-4 space-y-4 pb-2 hide-scrollbar"
+        onScroll={handleScroll}
         style={{ 
           paddingBottom: keyboardHeight > 0 ? `${keyboardHeight + 16}px` : undefined,
           minHeight: 0 
@@ -807,7 +802,7 @@ const Chat = () => {
         <div className="sticky top-0 left-0 right-0 h-4 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
         
         {/* Date headers and messages */}
-        {messages.length === 0 ? (
+        {displayMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full min-h-[50vh]">
             <div className="text-center">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center mx-auto mb-4">
@@ -852,13 +847,9 @@ const Chat = () => {
                     className={`group flex ${isOwnMessage ? 'justify-end' : 'justify-start'} ${isSequence ? 'mt-0.5' : 'mt-3'} cursor-pointer`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Message clicked:', message.id);
                       handleMessageClick(message.id);
                     }}
-                    onDoubleClick={() => {
-                      console.log('Message double-clicked:', message.id);
-                      handleMessageClick(message.id);
-                    }}
+                    onDoubleClick={() => handleMessageClick(message.id)}
                     onTouchStart={(e) => handleTouchStart(e, message.id, isOwnMessage, message.content || '')}
                     onTouchEnd={handleTouchEnd}
                     onTouchMove={handleTouchMove}
@@ -945,7 +936,8 @@ const Chat = () => {
                             isOwnMessage 
                               ? 'bg-primary text-primary-foreground rounded-br-md' 
                               : 'bg-secondary text-foreground rounded-bl-md',
-                            (isSelected || isMultiSelected) && "ring-2 ring-primary"
+                            (isSelected || isMultiSelected) && "ring-2 ring-primary",
+                            message.isPending && "opacity-50"
                           )}
                           style={{ borderRadius: isOwnMessage ? '16px 16px 4px 16px' : '16px 16px 16px 4px' }}
                           onClick={(e) => {
@@ -968,8 +960,8 @@ const Chat = () => {
                         </div>
                       )}
                       
-                      {/* Time and read receipts - only show when message is selected */}
-                      {isSelected && (
+                      {/* Time and status indicators */}
+                      {(isSelected || message.isPending || isOwnMessage) && (
                         <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
@@ -978,13 +970,11 @@ const Chat = () => {
                             isOwnMessage ? 'justify-end' : 'justify-start'
                           )}
                         >
-                          <span className="text-[10px] text-muted-foreground/70">{formatTime(message.created_at)}</span>
+                          <span className="text-[10px] text-muted-foreground/70">
+                            {message.isPending ? 'Sending...' : formatTime(message.created_at)}
+                          </span>
                           {isOwnMessage && (
-                            message.read_at ? (
-                              <CheckCheck className="w-3 h-3 text-blue-400" />
-                            ) : (
-                              <Check className="w-3 h-3 text-muted-foreground/70" />
-                            )
+                            <StatusIcon status={message.status} isOwn={isOwnMessage} />
                           )}
                         </motion.div>
                       )}
@@ -1006,11 +996,10 @@ const Chat = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Popup - Options Only (No Reactions) */}
+      {/* Long press popup */}
       <AnimatePresence>
         {longPressPopup && (
           <>
-            {/* Dimmed Background */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1019,7 +1008,6 @@ const Chat = () => {
               onClick={() => setLongPressPopup(null)}
             />
             
-            {/* Popup Container */}
             <motion.div
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1031,7 +1019,6 @@ const Chat = () => {
                 className="w-[75%] max-w-[320px] bg-white rounded-3xl shadow-2xl border border-white/20 overflow-hidden" 
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Action Buttons */}
                 <div className="bg-white py-1">
                   {/* Reply */}
                   <button
@@ -1096,7 +1083,7 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* Reply Indicator - Sticky above input */}
+      {/* Reply indicator */}
       <AnimatePresence>
         {replyToMessage && (
           <motion.div
@@ -1131,7 +1118,7 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* Input Bar - Sticky at bottom */}
+      {/* Input Bar */}
       <div className="flex-shrink-0 bg-background border-t border-border/30 sticky bottom-0" style={{ paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined }}>
         <MessageInput
           value={newMessage}
@@ -1159,8 +1146,6 @@ const Chat = () => {
         isOpen={fullscreenImage.isOpen}
         onClose={() => setFullscreenImage({ src: '', isOpen: false })}
       />
-
-      
     </div>
   );
 };

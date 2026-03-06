@@ -16,8 +16,6 @@ interface ChatUser {
   lastMessageTime?: string;
   lastMessageSender?: 'me' | 'them' | null;
   unreadCount: number;
-  isOnline?: boolean;
-  isTyping?: boolean;
 }
 
 const ChatList = () => {
@@ -111,8 +109,6 @@ const ChatList = () => {
               : undefined,
             lastMessageSender: lastMsg?.sender_id === user.id ? 'me' : 'them',
             unreadCount,
-            isOnline: Math.random() > 0.5,
-            isTyping: false,
           };
         });
 
@@ -140,8 +136,6 @@ const ChatList = () => {
           name: profile.name || "Unknown",
           avatar_url: profile.avatar_url,
           unreadCount: 0,
-          isOnline: Math.random() > 0.5,
-          isTyping: false,
         }));
         setAllUsers(usersList);
       }
@@ -242,14 +236,14 @@ const ChatList = () => {
 
           {/* Loading State */}
           {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-16"
-            >
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground mt-2">Loading</span>
-            </motion.div>
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="relative w-20 h-20">
+                <span className="z-loading z-1">Z</span>
+                <span className="z-loading z-2">Z</span>
+                <span className="z-loading z-3">Z</span>
+                <span className="z-loading z-4">Z</span>
+              </div>
+            </div>
           )}
 
           {/* Empty State */}

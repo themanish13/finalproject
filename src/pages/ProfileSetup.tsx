@@ -12,11 +12,20 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import AvatarUpload from "@/components/AvatarUpload";
+import { useAuthStore } from "@/hooks/useAuth";
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { user, initialized } = useAuthStore();
+  
+  // Redirect if not authenticated or profile already complete
+  useEffect(() => {
+    if (initialized && !user) {
+      navigate("/auth", { replace: true });
+    }
+  }, [user, initialized, navigate]);
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
@@ -182,10 +191,11 @@ const ProfileSetup = () => {
   if (isLoading && !name && !gender && !className && !batch) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <h3 className="text-lg font-semibold mb-2">Loading Profile...</h3>
-          <p className="text-muted-foreground">Checking your account</p>
+        <div className="relative w-20 h-20">
+          <span className="z-loading z-1">Z</span>
+          <span className="z-loading z-2">Z</span>
+          <span className="z-loading z-3">Z</span>
+          <span className="z-loading z-4">Z</span>
         </div>
       </div>
     );

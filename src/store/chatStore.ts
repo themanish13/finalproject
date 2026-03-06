@@ -1,22 +1,7 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import type { ChatMessage, MessageStatus, PendingAttachment } from '@/types/chat';
 
-export interface ChatMessage {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  media_url?: string;
-  media_type?: string;
-  read_at?: string | null;
-  created_at: string;
-  is_unsent?: boolean;
-  reply_to_id?: string | null;
-  reply_to_content?: string;
-  reactions?: string[];
-  isPending?: boolean; // Optimistic UI
-  isFailed?: boolean;  // Failed to send
-}
+export type { ChatMessage, MessageStatus, PendingAttachment } from '@/types/chat';
 
 interface ChatState {
   // State
@@ -27,6 +12,8 @@ interface ChatState {
   isLoadingMore: boolean;
   hasMoreMessages: boolean;
   lastReadMessageId: string | null;
+  isAtBottom: boolean; // Track if user is at bottom of chat
+  pendingAttachments: PendingAttachment[];
   
   // Actions
   setMessages: (messages: ChatMessage[]) => void;
@@ -39,11 +26,23 @@ interface ChatState {
   setHasMore: (hasMore: boolean) => void;
   setCurrentChat: (chatId: string, userId: string) => void;
   clearChat: () => void;
+  setIsAtBottom: (isAtBottom: boolean) => void;
   
   // Optimistic UI helpers
   addOptimisticMessage: (message: Omit<ChatMessage, 'id' | 'created_at' | 'isPending'>) => string;
-  confirmMessage: (tempId: string, realId: string, createdAt: string) => void;
+  confirmMessage: (tempId: string, realId: string, createdAt: string, status?: MessageStatus) => void;
   failMessage: (tempId: string) => void;
+  
+  // Attachment handling
+  addPendingAttachment: (attachment: PendingAttachment) => void;
+  updatePendingAttachment: (id: string, updates: Partial<PendingAttachment>) => void;
+  removePendingAttachment: (id: string) => void;
+  clearPendingAttachments: () => void;
+  
+  // Message status helpers
+  markMessageAsDelivered: (messageId: string) => void;
+  markMessageAsSeen: (messageId: string) => void;
+  markAllMessagesAsSeen: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -55,11 +54,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoadingMore: false,
   hasMoreMessages: true,
   lastReadMessageId: null,
+  isAtBottom: true,
+  pendingAttachments: [],
 
   // Set all messages (replaces current state)
   setMessages: (messages) => set({ messages }),
 
-  // Add single message (for realtime)
+  // Add single message (for realtime) - only if not already exists
   addMessage: (message) => set((state) => {
     // Don't add if already exists
     if (state.messages.some(m => m.id === message.id)) {
@@ -76,7 +77,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return { messages: [...state.messages, ...uniqueNew] };
   }),
 
-  // Update a message (for reactions, read receipts, etc.)
+  // Update a message (for reactions, read receipts, status, etc.)
   updateMessage: (id, updates) => set((state) => ({
     messages: state.messages.map(m => 
       m.id === id ? { ...m, ...updates } : m
@@ -102,7 +103,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     currentChatId: null,
     hasMoreMessages: true,
     lastReadMessageId: null,
+    isAtBottom: true,
+    pendingAttachments: [],
   }),
+
+  setIsAtBottom: (isAtBottom) => set({ isAtBottom }),
 
   // Optimistic UI: Add message immediately
   addOptimisticMessage: (message) => {
@@ -112,6 +117,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       id: tempId,
       created_at: new Date().toISOString(),
       isPending: true,
+      status: (message as any).status || 'sent',
     };
     
     set((state) => ({
@@ -122,10 +128,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Confirm message after server response
-  confirmMessage: (tempId, realId, createdAt) => set((state) => ({
+  confirmMessage: (tempId, realId, createdAt, status = 'sent') => set((state) => ({
     messages: state.messages.map(m => 
       m.id === tempId 
-        ? { ...m, id: realId, created_at: createdAt, isPending: false }
+        ? { ...m, id: realId, created_at: createdAt, isPending: false, status }
         : m
     )
   })),
@@ -136,6 +142,46 @@ export const useChatStore = create<ChatState>((set, get) => ({
       m.id === tempId ? { ...m, isFailed: true, isPending: false } : m
     )
   })),
+
+  // Attachment handling
+  addPendingAttachment: (attachment) => set((state) => ({
+    pendingAttachments: [...state.pendingAttachments, attachment]
+  })),
+
+  updatePendingAttachment: (id, updates) => set((state) => ({
+    pendingAttachments: state.pendingAttachments.map(a =>
+      a.id === id ? { ...a, ...updates } : a
+    )
+  })),
+
+  removePendingAttachment: (id) => set((state) => ({
+    pendingAttachments: state.pendingAttachments.filter(a => a.id !== id)
+  })),
+
+  clearPendingAttachments: () => set({ pendingAttachments: [] }),
+
+  // Message status helpers
+  markMessageAsDelivered: (messageId) => set((state) => ({
+    messages: state.messages.map(m =>
+      m.id === messageId ? { ...m, status: 'delivered', delivered_at: new Date().toISOString() } : m
+    )
+  })),
+
+  markMessageAsSeen: (messageId) => set((state) => ({
+    messages: state.messages.map(m =>
+      m.id === messageId ? { ...m, status: 'seen', read_at: new Date().toISOString() } : m
+    )
+  })),
+
+  markAllMessagesAsSeen: () => set((state) => ({
+    messages: state.messages.map(m => {
+      // Only mark messages from other users as seen
+      if (m.sender_id !== state.currentUserId && !m.read_at) {
+        return { ...m, status: 'seen', read_at: new Date().toISOString() };
+      }
+      return m;
+    })
+  })),
 }));
 
 // Selector for sorted messages (newest at bottom)
@@ -144,5 +190,20 @@ export const useSortedMessages = () => {
   return [...messages].sort((a, b) => 
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
+};
+
+// Selector for unread message count
+export const useUnreadCount = () => {
+  const messages = useChatStore(state => state.messages);
+  const currentUserId = useChatStore(state => state.currentUserId);
+  return messages.filter(m => 
+    m.sender_id !== currentUserId && !m.read_at
+  ).length;
+};
+
+// Selector for pending messages (for optimistic UI)
+export const usePendingMessages = () => {
+  const messages = useChatStore(state => state.messages);
+  return messages.filter(m => m.isPending);
 };
 

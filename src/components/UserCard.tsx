@@ -168,18 +168,16 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
         </motion.div>
 
         {/* Chat Button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mt-2 text-primary hover:text-primary hover:bg-primary/10"
+        <button
+          className="chat-btn mt-2 flex items-center justify-center gap-1"
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/chat?matchId=${user.id}`);
           }}
         >
-          <MessageCircle className="w-4 h-4 mr-1" />
+          <MessageCircle className="w-4 h-4" />
           Chat
-        </Button>
+        </button>
       </div>
     </Card>
   );

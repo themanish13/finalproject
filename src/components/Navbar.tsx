@@ -153,12 +153,13 @@ const Navbar = () => {
                   variant={isActive(item.path) ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => navigate(item.path)}
-                  className={isActive(item.path) 
-                    ? "bg-[var(--secondary)] text-[var(--primary)]"
-                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--secondary)]"
+                  className={isActive(item.path)
+                    ? "bg-[var(--secondary)] !text-white"
+                    : "text-white hover:text-white hover:bg-[var(--secondary)] !text-white"
                   }
+                  style={{ color: '#FFFFFF' }}
                 >
-                  <item.icon className="w-4 h-4 mr-2" />
+                  <item.icon className="w-4 h-4 mr-2" style={{ color: '#FFFFFF' }} />
                   {item.label}
                 </Button>
               ))}

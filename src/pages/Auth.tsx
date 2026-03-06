@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/hooks/useAuth";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -16,6 +17,15 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  
+  // Redirect if already authenticated
+  const { user, initialized } = useAuthStore();
+  
+  useEffect(() => {
+    if (initialized && user) {
+      navigate("/discover", { replace: true });
+    }
+  }, [user, initialized, navigate]);
 
 
 
