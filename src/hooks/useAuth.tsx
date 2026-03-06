@@ -35,11 +35,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   // Initialize auth - restore session on app load
   initializeAuth: async () => {
+    // Don't re-initialize if already done
+    if (get().initialized) return;
+    
     try {
       set({ loading: true });
       
+      // Create a timeout promise - force initialize after 5 seconds
+      const timeoutPromise = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          console.log('[Auth] Timeout reached, forcing initialization');
+          resolve();
+        }, 5000);
+      });
+      
       // Get current session from storage
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const sessionPromise = supabase.auth.getSession();
+      
+      // Race between session fetch and timeout
+      const result: any = await Promise.race([sessionPromise, timeoutPromise]);
+      
+      // If result is the timeout (undefined), just proceed with no session
+      if (!result || !result.data) {
+        console.log('[Auth] No session or timeout, proceeding as logged out');
+        set({ user: null, session: null, loading: false, initialized: true });
+        return;
+      }
+      
+      const { data: { session }, error } = result;
       
       if (error) {
         console.error('Error getting session:', error);
@@ -145,4 +168,3 @@ export const useRequireAuth = (redirectTo: string = '/auth') => {
 
   return { user, loading: !isReady || (loading && initialized), isReady };
 };
-

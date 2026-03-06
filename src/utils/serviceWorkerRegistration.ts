@@ -39,7 +39,7 @@ function showUpdatePrompt(registration: ServiceWorkerRegistration) {
         bottom: 80px;
         left: 50%;
         transform: translateX(-50%);
-        background: #22C55E;
+        background: #5b763fff;
         color: white;
         padding: 12px 20px;
         border-radius: 12px;
@@ -55,7 +55,7 @@ function showUpdatePrompt(registration: ServiceWorkerRegistration) {
       }
       #sw-update-banner button {
         background: white;
-        color: #22C55E;
+        color: #245a37ff;
         border: none;
         padding: 6px 14px;
         border-radius: 6px;
