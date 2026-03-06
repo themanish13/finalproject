@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => ({
       clientPort: 8080,
       port: 8080,
     },
+    // Fix WebSocket issues with Supabase realtime
+    allowedHosts: true,
   },
 
   // Build configuration with proper cache busting

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { ChatMessage, MessageStatus, PendingAttachment } from '@/types/chat';
+import type { ChatMessage, MessageStatus, PendingAttachment, UnreadCountsMap } from '@/types/chat';
 
-export type { ChatMessage, MessageStatus, PendingAttachment } from '@/types/chat';
+export type { ChatMessage, MessageStatus, PendingAttachment, UnreadCountsMap } from '@/types/chat';
 
 interface ChatState {
   // State
@@ -15,6 +15,9 @@ interface ChatState {
   isAtBottom: boolean; // Track if user is at bottom of chat
   pendingAttachments: PendingAttachment[];
   
+  // Unread counts - map of chatId to unread count
+  unreadCounts: UnreadCountsMap;
+  
   // Actions
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (message: ChatMessage) => void;
@@ -27,6 +30,12 @@ interface ChatState {
   setCurrentChat: (chatId: string, userId: string) => void;
   clearChat: () => void;
   setIsAtBottom: (isAtBottom: boolean) => void;
+  
+  // Unread count methods
+  setUnreadCount: (chatId: string, count: number) => void;
+  incrementUnreadCount: (chatId: string) => void;
+  clearUnreadCount: (chatId: string) => void;
+  setAllUnreadCounts: (counts: UnreadCountsMap) => void;
   
   // Optimistic UI helpers
   addOptimisticMessage: (message: Omit<ChatMessage, 'id' | 'created_at' | 'isPending'>) => string;
@@ -56,6 +65,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   lastReadMessageId: null,
   isAtBottom: true,
   pendingAttachments: [],
+  unreadCounts: {},
 
   // Set all messages (replaces current state)
   setMessages: (messages) => set({ messages }),
@@ -108,6 +118,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
   }),
 
   setIsAtBottom: (isAtBottom) => set({ isAtBottom }),
+
+  // Unread count methods
+  setUnreadCount: (chatId, count) => set((state) => ({
+    unreadCounts: { ...state.unreadCounts, [chatId]: count }
+  })),
+
+  incrementUnreadCount: (chatId) => set((state) => ({
+    unreadCounts: { 
+      ...state.unreadCounts, 
+      [chatId]: (state.unreadCounts[chatId] || 0) + 1 
+    }
+  })),
+
+  clearUnreadCount: (chatId) => set((state) => {
+    const { [chatId]: _, ...rest } = state.unreadCounts;
+    return { unreadCounts: rest };
+  }),
+
+  setAllUnreadCounts: (counts) => set({ unreadCounts: counts }),
 
   // Optimistic UI: Add message immediately
   addOptimisticMessage: (message) => {

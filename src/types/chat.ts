@@ -21,6 +21,20 @@ export interface ChatMessage {
   delivered_at?: string | null;
 }
 
+// Chat participant (for tracking last read message)
+export interface ChatParticipant {
+  id?: string;
+  chat_id: string;
+  user_id: string;
+  last_read_message_id?: string | null;
+  unread_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Unread counts map - chatId to count
+export type UnreadCountsMap = Record<string, number>;
+
 // Chat state interface
 export interface ChatState {
   messages: ChatMessage[];

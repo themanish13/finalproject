@@ -124,19 +124,24 @@ const AppRoutes = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter future={routerFutureConfig.future}>
-        <AuthLoader>
-          <AppRoutes />
-        </AuthLoader>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Initialize auth - this sets initialized = true
+  useAuth();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter future={routerFutureConfig.future}>
+          <AuthLoader>
+            <AppRoutes />
+          </AuthLoader>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
 
