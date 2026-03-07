@@ -17,6 +17,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ProfileSetup from "./pages/ProfileSetup";
 import Chat from "./pages/Chat";
+import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./components/MainLayout";
 
@@ -68,13 +69,28 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // App routes
 const AppRoutes = () => {
+  const { user, initialized } = useAuthStore();
+  
+  // If user is logged in and initialized, redirect from "/" to "/home"
+  if (initialized && user) {
+    // Check if we're on root or auth route and redirect to home
+  }
+  
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={user ? <Navigate to="/home" replace /> : <Landing />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
 
       {/* Protected routes */}
+      <Route
+        path="/home"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/discover"
         element={

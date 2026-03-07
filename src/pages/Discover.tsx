@@ -12,8 +12,7 @@ interface User {
   id: string;
   name: string;
   avatar_url?: string;
-  class?: string;
-  batch?: string;
+  bio?: string;
   gender?: string;
 }
 
@@ -85,7 +84,7 @@ const Discover = () => {
 
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, avatar_url, class, batch, gender")
+        .select("id, name, avatar_url, bio, gender")
         .not("name", "is", null);
 
       if (profileError) {
@@ -282,7 +281,7 @@ const Discover = () => {
     }
   };
 
-  // Enhanced search filter - handles name, class (faculty), and batch (year)
+  // Enhanced search filter - handles name and bio
   const filteredUsers = useMemo(() => {
     const searchTerms = searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
     
@@ -292,29 +291,16 @@ const Discover = () => {
       // Create searchable text from all relevant fields
       const searchableText = [
         user.name?.toLowerCase() || '',
-        user.class?.toLowerCase() || '',
-        user.batch?.toLowerCase() || '',
-        // Also search for common variations
-        user.batch ? `${user.batch} batch` : '',
-        user.batch ? `batch ${user.batch}` : '',
-        user.class ? `${user.class} year` : '',
+        user.bio?.toLowerCase() || '',
       ].join(' ');
       
       // Check if any search term matches
       return searchTerms.some(term => {
         // Check for exact matches in individual fields
         const nameMatch = user.name?.toLowerCase().includes(term);
-        const classMatch = user.class?.toLowerCase().includes(term);
-        const batchMatch = user.batch?.toLowerCase().includes(term);
+        const bioMatch = user.bio?.toLowerCase().includes(term);
         
-        // Check for batch year variations (e.g., "2021" matches "2021")
-        // Also check if user types "batch 2021" or "2021 batch"
-        const batchYearMatch = 
-          user.batch?.includes(term) || 
-          (term === 'batch' && user.batch) ||
-          (user.batch && term.startsWith(user.batch));
-        
-        return nameMatch || classMatch || batchMatch || batchYearMatch;
+        return nameMatch || bioMatch;
       });
     });
   }, [users, searchQuery]);

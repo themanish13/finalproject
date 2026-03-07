@@ -13,8 +13,7 @@ interface MatchedUser {
   id: string;
   name: string;
   avatar_url?: string;
-  class?: string;
-  batch?: string;
+  bio?: string;
   matchedAt: string;
   lastMessage?: string;
   lastMessageSender?: 'me' | 'them' | null;
@@ -48,8 +47,7 @@ const Matches = () => {
       id: matchedUserId,
       name: match.profile?.name || "Unknown",
       avatar_url: match.profile?.avatar_url,
-      class: match.profile?.class,
-      batch: match.profile?.batch,
+      bio: match.profile?.bio,
       matchedAt: new Date(match.matched_at).toLocaleDateString(),
       lastMessage: match.lastMessage?.content,
       lastMessageSender: match.lastMessage?.sender_id === currentUserId ? 'me' : 'them',
@@ -106,7 +104,7 @@ const Matches = () => {
                   id={match.id}
                   name={match.name}
                   avatar_url={match.avatar_url}
-                  bio={match.class ? `${match.class} • ${match.batch}` : undefined}
+                  bio={match.bio}
                   matchedAt={match.matchedAt}
                   lastMessage={match.lastMessage}
                   lastMessageSender={match.lastMessageSender}

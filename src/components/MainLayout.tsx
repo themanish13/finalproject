@@ -1,20 +1,24 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Compass, Heart, MessageCircle, Settings } from "lucide-react";
+import { Compass, Heart, MessageCircle, User, Home as HomeIcon } from "lucide-react";
 import Navbar from "./Navbar";
+import { useAuth } from "@/hooks/useAuth";
+import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 
 // Pages
 import Discover from "@/pages/Discover";
 import Matches from "@/pages/Matches";
 import ChatList from "@/pages/ChatList";
 import SettingsPage from "@/pages/Settings";
+import Home from "@/pages/Home";
 
 const PAGES = [
+  { path: "/home", icon: HomeIcon, label: "Home" },
   { path: "/discover", icon: Compass, label: "Discover" },
-  { path: "/matches", icon: Heart, label: "Matches" },
   { path: "/chats", icon: MessageCircle, label: "Chats" },
-  { path: "/settings", icon: Settings, label: "Settings" },
+  { path: "/matches", icon: Heart, label: "Matches" },
+  { path: "/settings", icon: User, label: "Profile" },
 ];
 
 // Swipe configuration - Instagram-style
@@ -27,6 +31,13 @@ const EDGE_RESISTANCE = 0.35;
 const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  
+  // Get unread counts for notifications
+  const { totalUnread } = useUnreadCounts({
+    userId: user?.id || '',
+    enabled: !!user,
+  });
   
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -293,26 +304,27 @@ const MainLayout = () => {
         {/* Pages Container */}
         <div
           ref={wrapperRef}
-          className="flex w-[400vw] h-full hide-scrollbar"
+          className="flex h-full hide-scrollbar"
           style={{ 
+            width: `${PAGES.length * 100}vw`,
             willChange: "transform",
             transform: `translateX(-${activeIndex * 100}vw)`
           }}
         >
+          {/* Home - Anonymous Posts */}
+          <div 
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            style={{ height: '100dvh' }}
+          >
+            <Home />
+          </div>
+          
           {/* Discover */}
           <div 
             className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
             style={{ height: '100dvh' }}
           >
             <Discover />
-          </div>
-          
-          {/* Matches */}
-          <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
-            style={{ height: '100dvh' }}
-          >
-            <Matches />
           </div>
           
           {/* Chats */}
@@ -323,7 +335,15 @@ const MainLayout = () => {
             <ChatList />
           </div>
           
-          {/* Settings */}
+          {/* Matches */}
+          <div 
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            style={{ height: '100dvh' }}
+          >
+            <Matches />
+          </div>
+          
+          {/* Profile/Settings */}
           <div 
             className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
             style={{ height: '100dvh' }}
@@ -344,6 +364,7 @@ const MainLayout = () => {
           {PAGES.map((item, index) => {
             const isActive = activeIndex === index;
             const Icon = item.icon;
+            const showBadge = index === 2 && totalUnread > 0;
             
             return (
               <button
@@ -374,17 +395,29 @@ const MainLayout = () => {
                     y: isActive ? -2 : 0
                   }}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  className={`p-1.5 rounded-xl ${isActive ? "bg-primary/10" : ""}`}
+                  className={`p-1.5 rounded-xl ${isActive ? "bg-white/10" : ""}`}
                 >
-                  <Icon 
-                    className={`w-5 h-5 transition-colors ${
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    }`} 
-                  />
+                  <div className="relative">
+                    <Icon 
+                      className={`w-5 h-5 transition-colors ${
+                        isActive ? "text-white" : "text-white"
+                      }`} 
+                    />
+                    {/* Notification Badge */}
+                    {showBadge && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-2 -right-2 bg-[#FF3B30] text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center"
+                      >
+                        {totalUnread > 99 ? '99+' : totalUnread}
+                      </motion.span>
+                    )}
+                  </div>
                 </motion.div>
                 <span 
                   className={`text-[10px] font-medium transition-colors ${
-                    isActive ? "text-primary" : "text-muted-foreground"
+                    isActive ? "text-white" : "text-white"
                   }`}
                 >
                   {item.label}
@@ -394,7 +427,7 @@ const MainLayout = () => {
                 {isActive && (
                   <motion.div
                     layoutId="activeIndicator"
-                    className="absolute -bottom-1 w-1 h-1 rounded-full bg-primary"
+                    className="absolute -bottom-1 w-1 h-1 rounded-full bg-white"
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}

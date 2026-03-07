@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
-  User, GraduationCap, Users, Save, LogOut, Trash2, Loader2, 
+  User, Pencil, Save, LogOut, Trash2, Loader2, 
   Shield, Bell, BellOff, Ban, AlertTriangle, 
   Lock, ChevronRight
 } from "lucide-react";
@@ -36,8 +36,7 @@ const Settings = () => {
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
-  const [className, setClassName] = useState("");
-  const [batch, setBatch] = useState("");
+  const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
   
@@ -84,8 +83,7 @@ const Settings = () => {
       if (profile && !error) {
         setName(profile.name || "");
         setGender(profile.gender || "");
-        setClassName(profile.class || "");
-        setBatch(profile.batch || "");
+        setBio(profile.bio || "");
         setAvatarUrl(profile.avatar_url || "");
       }
     } catch (error) {
@@ -109,8 +107,7 @@ const Settings = () => {
         .update({
           name: name,
           gender: gender,
-          class: className,
-          batch: batch,
+          bio: bio,
         })
         .eq("id", user.id);
 
@@ -281,33 +278,20 @@ const Settings = () => {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Class</Label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="e.g. CS-A"
-                      value={className}
-                      onChange={(e) => setClassName(e.target.value)}
-                      className="pl-10 bg-card border-border focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">ADD BIO</Label>
+                <div className="relative">
+                  <Pencil className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Write something about yourself..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    maxLength={40}
+                    className="pl-10 bg-card border-border focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Batch</Label>
-                  <div className="relative">
-                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="e.g. 2024"
-                      value={batch}
-                      onChange={(e) => setBatch(e.target.value)}
-                      className="pl-10 bg-card border-border focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
+                <p className="text-[10px] text-muted-foreground text-right">{bio.length}/40</p>
               </div>
 
               <Button
@@ -331,6 +315,7 @@ const Settings = () => {
         </motion.div>
 
         {/* Privacy Section */}
+        {/* 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -343,7 +328,6 @@ const Settings = () => {
             </h2>
             
             <div className="space-y-4">
-              {/* Screenshot Warning */}
               <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -363,7 +347,6 @@ const Settings = () => {
                 />
               </div>
 
-              {/* Notifications */}
               <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -389,6 +372,7 @@ const Settings = () => {
             </div>
           </Card>
         </motion.div>
+        */}
 
         {/* Block Feature */}
         <motion.div

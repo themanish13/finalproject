@@ -13,7 +13,6 @@ interface MatchCardProps {
   lastMessage?: string;
   lastMessageSender?: 'me' | 'them' | null;
   hasUnread?: boolean;
-  className?: string;
 }
 
 const MatchCard = ({
@@ -26,7 +25,6 @@ const MatchCard = ({
   lastMessage,
   lastMessageSender,
   hasUnread = false,
-  className,
 }: MatchCardProps) => {
   const navigate = useNavigate();
 
@@ -36,8 +34,7 @@ const MatchCard = ({
       className={cn(
         "flex flex-col sm:flex-row gap-4 p-4 rounded-lg cursor-pointer",
         "bg-card border border-border",
-        "hover:border-primary/50 transition-all duration-200",
-        className
+        "hover:border-primary/50 transition-all duration-200"
       )}
     >
       {/* Left Column: Profile Card */}

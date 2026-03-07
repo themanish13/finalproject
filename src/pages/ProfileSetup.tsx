@@ -1,12 +1,11 @@
-
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Heart, User, Camera, GraduationCap, Users, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { User, Camera, ArrowRight, Loader2, AlertCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -29,9 +28,7 @@ const ProfileSetup = () => {
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
-  const [className, setClassName] = useState("");
-
-  const [batch, setBatch] = useState("");
+  const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [existingProfile, setExistingProfile] = useState<any>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -75,8 +72,7 @@ const ProfileSetup = () => {
         setExistingProfile(profile);
         setName(profile.name || "");
         setGender(profile.gender || "");
-        setClassName(profile.class || "");
-        setBatch(profile.batch || "");
+        setBio(profile.bio || "");
         setAvatarUrl(profile.avatar_url || "");
         console.log("Loaded existing profile:", profile);
       } else {
@@ -133,8 +129,7 @@ const ProfileSetup = () => {
           .update({
             name: name.trim(),
             gender: gender,
-            class: className.trim(),
-            batch: batch.trim(),
+            bio: bio.trim(),
           })
           .eq("id", user.id);
         
@@ -149,8 +144,7 @@ const ProfileSetup = () => {
             email: user.email!,
             name: name.trim(),
             gender: gender,
-            class: className.trim(),
-            batch: batch.trim(),
+            bio: bio.trim(),
             hints_remaining: 3, // Default hints
           });
         
@@ -188,7 +182,7 @@ const ProfileSetup = () => {
   };
 
   // Show loading state briefly
-  if (isLoading && !name && !gender && !className && !batch) {
+  if (isLoading && !name && !gender && !bio) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="relative w-20 h-20">
@@ -243,8 +237,6 @@ const ProfileSetup = () => {
         <Card variant="glass" className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
 
-
-
             {/* Avatar Upload */}
             <div className="flex justify-center">
               <AvatarUpload
@@ -285,35 +277,21 @@ const ProfileSetup = () => {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="class">Class</Label>
-                <div className="relative">
-                  <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    id="class"
-                    type="text"
-                    placeholder="e.g. CS-A"
-                    value={className}
-                    onChange={(e) => setClassName(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10"
-                  />
-                </div>
+            {/* Bio instead of Class/Batch */}
+            <div className="space-y-2">
+              <Label htmlFor="bio">ADD BIO</Label>
+              <div className="relative">
+                <Pencil className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                <Textarea
+                  id="bio"
+                  placeholder="Write something about yourself..."
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10 min-h-[80px] resize-none"
+                  maxLength={40}
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="batch">Batch</Label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    id="batch"
-                    type="text"
-                    placeholder="e.g. 2024"
-                    value={batch}
-                    onChange={(e) => setBatch(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10 focus:border-primary focus:bg-white/10"
-                  />
-                </div>
-              </div>
+              <p className="text-[10px] text-muted-foreground text-right">{bio.length}/40</p>
             </div>
 
             <Button
@@ -344,3 +322,4 @@ const ProfileSetup = () => {
 };
 
 export default ProfileSetup;
+

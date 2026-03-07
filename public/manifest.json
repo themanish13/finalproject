@@ -2,7 +2,7 @@
   "name": "CrushRadar - Find Mutual Crushes Anonymously",
   "short_name": "CrushRadar",
   "description": "The privacy-first mutual crush detection app. Select your crushes anonymously. Only reveal when it's mutual.",
-  "start_url": "/",
+  "start_url": "/home",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",

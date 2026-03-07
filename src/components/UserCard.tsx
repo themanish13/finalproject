@@ -2,15 +2,13 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 interface User {
   id: string;
   name: string;
   avatar_url?: string;
-  class?: string;
-  batch?: string;
+  bio?: string;
   gender?: string;
 }
 
@@ -67,7 +65,7 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
     <Card
       variant={isSelected ? "glow" : "clean"}
       className={`relative h-full min-h-[180px] p-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-        isSelected ? "ring-2 ring-primary shadow-[0_0_20px_rgba(255,45,85,0.3)]" : ""
+        isSelected ? "ring-2 ring-white shadow-[0_0_20px_rgba(255,255,255,0.3)]" : ""
       }`}
       onClick={handleClick}
     >
@@ -150,34 +148,46 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
 
         {/* Info */}
         <h3 className="font-semibold text-sm md:text-base mb-0.5 truncate w-full">{user.name}</h3>
-        <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">
-          {user.class || "Unknown"} • {user.batch || "Unknown"}
-        </p>
+        
+        {/* Bio - Fixed height container to keep card constant */}
+        <div className="h-8 mb-1 px-1">
+          {user.bio ? (
+            <p className="text-[10px] md:text-xs text-muted-foreground line-clamp-2">
+              {user.bio}
+            </p>
+          ) : (
+            <p className="text-[10px] md:text-xs text-muted-foreground italic">
+              No bio yet
+            </p>
+          )}
+        </div>
 
-        {/* Select indicator */}
-        <motion.div
-          animate={isSelected ? { scale: [1, 1.05, 1] } : {}}
-          transition={{ duration: 0.2 }}
-          className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-all duration-200 mt-2 ${
-            isSelected
-              ? "bg-gradient-to-r from-primary-light to-primary text-white"
-              : "bg-secondary text-muted-foreground"
-          }`}
-        >
-          {isSelected ? "Selected ❤️" : "Tap to select"}
-        </motion.div>
+        {/* Buttons Row - Side by Side */}
+        <div className="flex items-center gap-2 mt-1">
+          {/* Select Button - Chat btn style */}
+          <motion.div
+            animate={isSelected ? { scale: [1, 1.05, 1] } : {}}
+            transition={{ duration: 0.2 }}
+            className="chat-btn"
+            onClick={handleClick}
+          >
+            {isSelected ? "Selected ❤️" : "Tap to select"}
+          </motion.div>
 
-        {/* Chat Button */}
-        <button
-          className="chat-btn mt-2 flex items-center justify-center gap-1"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/chat?matchId=${user.id}`);
-          }}
-        >
-          <MessageCircle className="w-4 h-4" />
-          Chat
-        </button>
+          {/* Chat Button - Same chat btn style */}
+          <motion.button
+            animate={isSelected ? { scale: [1, 1.05, 1] } : {}}
+            transition={{ duration: 0.2 }}
+            className="chat-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/chat?matchId=${user.id}`);
+            }}
+          >
+            <MessageCircle className="w-3 h-3 inline mr-1" />
+            Chat
+          </motion.button>
+        </div>
       </div>
     </Card>
   );

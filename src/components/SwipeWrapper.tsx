@@ -13,7 +13,7 @@ const SwipeWrapper = ({
   children, 
   onSwipeLeft, 
   onSwipeRight, 
-  threshold = 100 
+  threshold = 70
 }: SwipeWrapperProps) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,15 +29,15 @@ const SwipeWrapper = ({
   }, []);
 
   const x = useMotionValue(0);
-  const opacity = useTransform(x, [-150, 0, 150], [0.5, 1, 0.5]);
-  const scale = useTransform(x, [-150, 0, 150], [0.9, 1, 0.9]);
+  const opacity = useTransform(x, [-200, 0, 200], [0.5, 1, 0.5]);
+  const scale = useTransform(x, [-200, 0, 200], [0.9, 1, 0.9]);
 
   const handleDragEnd = (_: any, info: { offset: { x: number }; velocity: { x: number } }) => {
     const swipeThreshold = threshold;
     
-    if (info.offset.x < -swipeThreshold || info.velocity.x < -500) {
+    if (info.offset.x < -swipeThreshold || info.velocity.x < -800) {
       if (onSwipeLeft) onSwipeLeft();
-    } else if (info.offset.x > swipeThreshold || info.velocity.x > 500) {
+    } else if (info.offset.x > swipeThreshold || info.velocity.x > 800) {
       if (onSwipeRight) onSwipeRight();
     }
   };
@@ -78,7 +78,7 @@ const SwipeWrapper = ({
     <motion.div
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.3}
+      dragElastic={0.2}
       onDragEnd={handleDragEnd}
       style={{ x, opacity, scale }}
       className="touch-none cursor-grab active:cursor-grabbing"
