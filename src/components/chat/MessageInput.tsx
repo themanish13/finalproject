@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, Image, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ const MessageInput = ({
 }: MessageInputProps) => {
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -42,8 +43,47 @@ const MessageInput = ({
     }
   };
 
+  const handleMediaClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0 && onMediaSelect) {
+      // Convert FileList to Array and pass
+      const fileArray: File[] = Array.from(files);
+      onMediaSelect(fileArray);
+      // Reset input so same file can be selected again
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className={cn("flex items-end gap-2 px-4 py-3", className)}>
+      {/* Media Button */}
+      {onMediaSelect && (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={handleMediaClick}
+          disabled={disabled}
+          className="rounded-full w-10 h-10 flex-shrink-0 hover:bg-secondary"
+        >
+          <Image className="w-5 h-5 text-muted-foreground" />
+        </Button>
+      )}
+      
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
       {/* Text Input */}
       <div className="flex-1">
         <textarea

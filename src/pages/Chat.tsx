@@ -135,8 +135,11 @@ const Chat = () => {
     chatId: matchId || '',
     currentUserId: currentUserId || '',
     onMessageReceived: (message) => {
-      setIsOtherUserTyping(true);
-      setTimeout(() => setIsOtherUserTyping(false), 2000);
+      // Only show typing indicator if message is from the OTHER user (not yourself)
+      if (message.sender_id !== currentUserId) {
+        setIsOtherUserTyping(true);
+        setTimeout(() => setIsOtherUserTyping(false), 2000);
+      }
     },
   });
 
@@ -445,9 +448,8 @@ const Chat = () => {
     finally { setSending(false); }
   };
 
-  const handleMediaSelect = async (files: FileList) => {
-    const fileArray = Array.from(files);
-    for (const file of fileArray) {
+  const handleMediaSelect = async (files: File[]) => {
+    for (const file of files) {
       const type = file.type.startsWith('video/') ? 'video' : 'image';
       await uploadAndSendMedia(file, type as 'image' | 'video');
     }
@@ -1124,6 +1126,7 @@ const Chat = () => {
           value={newMessage}
           onChange={setNewMessage}
           onSend={() => sendMessage()}
+          onMediaSelect={handleMediaSelect}
           placeholder="Message..."
           disabled={sending}
           className="select-none"
@@ -1137,7 +1140,12 @@ const Chat = () => {
         accept="image/*,video/*" 
         multiple
         className="hidden" 
-        onChange={(e) => handleMediaSelect(e.target.files!)} 
+        onChange={(e) => {
+          const files = e.target.files;
+          if (files) {
+            handleMediaSelect(Array.from(files));
+          }
+        }} 
       />
 
       {/* Fullscreen Image Viewer */}

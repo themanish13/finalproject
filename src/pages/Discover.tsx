@@ -163,6 +163,20 @@ const Discover = () => {
       }
 
       if (selectedCrushes.includes(userId)) {
+        // Also delete from matches table if exists
+        const { data: existingMatch } = await supabase
+          .from("matches")
+          .select("id")
+          .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${currentUserId})`)
+          .maybeSingle();
+
+        if (existingMatch) {
+          await supabase
+            .from("matches")
+            .delete()
+            .eq("id", existingMatch.id);
+        }
+
         const { error } = await supabase
           .from("crushes")
           .delete()
@@ -179,6 +193,7 @@ const Discover = () => {
           description: "Your selection has been updated.",
         });
       } else {
+        // Adding a new crush
         // First check if crush already exists in database (edge case)
         const { data: existingCrush } = await supabase
           .from("crushes")
@@ -219,38 +234,36 @@ const Discover = () => {
           throw error;
         }
 
-        // Check for mutual match using a different approach
+        // Check for mutual match
         try {
-          // First insert the crush, then check for mutual
           const { data: matchCheck } = await supabase
             .from("crushes")
             .select("*")
             .eq("sender_id", userId)
             .eq("receiver_id", currentUserId);
         
-        console.log("Match check result:", matchCheck);
+          console.log("Match check result:", matchCheck);
 
-        setSelectedCrushes([...selectedCrushes, userId]);
-        setExistingCrushes([...existingCrushes, userId]);
-        
-        // Check if they already had a crush on you (mutual)
-        const isMutual = matchCheck && matchCheck.length > 0;
-        
-        if (isMutual) {
-          // It's a match!
-          toast({
-            title: "🎉 IT'S A MATCH! ❤️",
-            description: "You can now chat with each other!",
-          });
-        } else {
-          toast({
-            title: "Crush Added! ❤️",
-            description: "They'll never know unless it's mutual.",
-          });
-        }
+          setSelectedCrushes([...selectedCrushes, userId]);
+          setExistingCrushes([...existingCrushes, userId]);
+          
+          // Check if they already had a crush on you (mutual)
+          const isMutual = matchCheck && matchCheck.length > 0;
+          
+          if (isMutual) {
+            // It's a match!
+            toast({
+              title: "🎉 IT'S A MATCH! ❤️",
+              description: "You can now chat with each other!",
+            });
+          } else {
+            toast({
+              title: "Crush Added! ❤️",
+              description: "They'll never know unless it's mutual.",
+            });
+          }
         } catch (err) {
           console.error("Match check error:", err);
-          // Still add the crush even if match check fails
           setSelectedCrushes([...selectedCrushes, userId]);
           setExistingCrushes([...existingCrushes, userId]);
           toast({

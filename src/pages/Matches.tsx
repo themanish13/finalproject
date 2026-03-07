@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Heart, Sparkles, PartyPopper, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import MatchCard from "@/components/MatchCard";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useMatches } from "@/hooks/useMatches";
 
 interface MatchedUser {
   id: string;
@@ -23,117 +24,38 @@ interface MatchedUser {
 const Matches = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [matches, setMatches] = useState<MatchedUser[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // Get current user
   useEffect(() => {
-    loadMatches();
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+      }
+    };
+    getUser();
   }, []);
 
-  const loadMatches = async () => {
-    try {
-      setLoading(true);
-      
-      // Get current user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        console.error("Auth error:", authError);
-        return;
-      }
+  // Use the realtime matches hook
+  const { matches, loading, refresh } = useMatches(currentUserId);
 
-      setCurrentUserId(user.id);
-
-      // Get matches where current user is either user1 or user2
-      const { data: matchesData, error: matchesError } = await supabase
-        .from("matches")
-        .select(`
-          id,
-          user1_id,
-          user2_id,
-          matched_at
-        `)
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
-
-      if (matchesError) {
-        console.error("Matches fetch error:", matchesError);
-        toast({
-          title: "Error",
-          description: "Failed to load matches. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (matchesData && matchesData.length > 0) {
-        // Get profile data for matched users
-        const matchedUserIds = matchesData.map(match => 
-          match.user1_id === user.id ? match.user2_id : match.user1_id
-        );
-
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, name, avatar_url, class, batch")
-          .in("id", matchedUserIds);
-
-        if (profilesError) {
-          console.error("Profiles fetch error:", profilesError);
-          return;
-        }
-
-        // Combine match data with profile data
-        const matchedUsers: MatchedUser[] = await Promise.all(matchesData.map(async match => {
-          const matchedUserId = match.user1_id === user.id ? match.user2_id : match.user1_id;
-          const profile = profiles?.find(p => p.id === matchedUserId);
-          
-          // Get last message between current user and this match
-          const { data: lastMsg } = await supabase
-            .from("messages")
-            .select("content, sender_id, receiver_id, read_at")
-            .or(`and(sender_id.eq.${user.id},receiver_id.eq.${matchedUserId}),and(sender_id.eq.${matchedUserId},receiver_id.eq.${user.id})`)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-
-          // Check if there are unread messages from this match - count messages where:
-          // - sender is the matched user (not current user)
-          // - read_at is null (not read yet)
-          const { count: unreadCount } = await supabase
-            .from("messages")
-            .select("*", { count: 'exact', head: true })
-            .eq("sender_id", matchedUserId)
-            .eq("receiver_id", user.id)
-            .is("read_at", null);
-
-          const hasUnread = (unreadCount || 0) > 0;
-
-          return {
-            id: matchedUserId,
-            name: profile?.name || "Unknown",
-            avatar_url: profile?.avatar_url,
-            class: profile?.class,
-            batch: profile?.batch,
-            matchedAt: new Date(match.matched_at).toLocaleDateString(),
-            lastMessage: lastMsg?.content,
-            lastMessageSender: lastMsg?.sender_id === user.id ? 'me' : 'them',
-            hasUnread
-          };
-        }));
-
-        setMatches(matchedUsers);
-      }
-    } catch (error) {
-      console.error("Error loading matches:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Transform matches for display
+  const displayMatches: MatchedUser[] = matches.map(match => {
+    const matchedUserId = match.user1_id === currentUserId ? match.user2_id : match.user1_id;
+    
+    return {
+      id: matchedUserId,
+      name: match.profile?.name || "Unknown",
+      avatar_url: match.profile?.avatar_url,
+      class: match.profile?.class,
+      batch: match.profile?.batch,
+      matchedAt: new Date(match.matched_at).toLocaleDateString(),
+      lastMessage: match.lastMessage?.content,
+      lastMessageSender: match.lastMessage?.sender_id === currentUserId ? 'me' : 'them',
+      hasUnread: (match.unreadCount || 0) > 0,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -166,14 +88,14 @@ const Matches = () => {
         )}
 
         {/* Matches List */}
-        {!loading && matches.length > 0 ? (
+        {!loading && displayMatches.length > 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className="flex flex-col gap-4"
           >
-            {matches.map((match, index) => (
+            {displayMatches.map((match, index) => (
               <motion.div
                 key={match.id}
                 initial={{ opacity: 0, x: -20 }}
@@ -215,7 +137,7 @@ const Matches = () => {
         ) : null}
 
         {/* Match celebration banner */}
-        {!loading && matches.length > 0 && (
+        {!loading && displayMatches.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -226,7 +148,7 @@ const Matches = () => {
               <div className="relative z-10">
                 <PartyPopper className="w-10 h-10 md:w-12 md:h-12 text-primary mx-auto mb-3 md:mb-4" />
                 <h3 className="text-xl font-semibold mb-2">
-                  You have {matches.length} mutual {matches.length === 1 ? "match" : "matches"}!
+                  You have {displayMatches.length} mutual {displayMatches.length === 1 ? "match" : "matches"}!
                 </h3>
                 <p className="text-muted-foreground text-sm md:text-base">
                   These connections are real. Start a conversation!
