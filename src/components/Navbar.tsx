@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Heart, Compass, Settings, Loader2, MessageCircle } from "lucide-react";
+import { Heart, Compass, Settings, Loader2, MessageCircle, Home as HomeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -106,6 +106,7 @@ const Navbar = () => {
   };
 
   const navItems = [
+    { path: "/home", label: "Home", icon: HomeIcon },
     { path: "/discover", label: "Discover", icon: Compass },
     { path: "/matches", label: "Matches", icon: Heart },
     { path: "/chats", label: "Chats", icon: MessageCircle },
@@ -133,7 +134,7 @@ const Navbar = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex items-center gap-3 cursor-pointer"
-              onClick={() => navigate("/discover")}
+              onClick={() => navigate("/home")}
             >
               <div className="relative w-10 h-[36px] md:w-12 md:h-[43px] rounded-lg overflow-hidden">
                 <img 

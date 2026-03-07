@@ -565,6 +565,13 @@ const Home = () => {
 
   const handleDelete = async (postId: string) => {
     try {
+      // Backend safety check: verify current user owns the post
+      const post = posts.find(p => p.id === postId);
+      if (!post || post.user_id !== currentUserId) {
+        console.error('Unauthorized deletion attempt');
+        return;
+      }
+
       await supabase.from('post_likes').delete().eq('post_id', postId);
       await supabase.from('post_comments').delete().eq('post_id', postId);
       await supabase.from('post_shares').delete().eq('post_id', postId);
@@ -635,6 +642,12 @@ const Home = () => {
   };
 
   const handleEdit = (postId: string, currentContent: string) => {
+    // Security check: verify current user owns the post
+    const post = posts.find(p => p.id === postId);
+    if (!post || post.user_id !== currentUserId) {
+      console.error('Unauthorized edit attempt');
+      return;
+    }
     setEditingPostId(postId);
     setEditContent(currentContent);
     setOpenMenuId(null);
@@ -688,16 +701,29 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      {/* Header - Hidden on desktop since navbar shows */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border md:hidden">
         <div className="px-4 py-3 flex items-center gap-2">
           <HomeIcon className="w-5 h-5 text-white" />
           <h1 className="text-lg font-bold text-white">Home</h1>
         </div>
       </header>
 
-      <div className="px-2 py-3 max-w-md mx-auto">
+      {/* Desktop Header */}
+      <header className="hidden md:block sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="container mx-auto px-4 md:px-6 py-4">
+          <div className="flex items-center gap-3">
+            <HomeIcon className="w-6 h-6 text-primary" />
+            <h1 className="text-2xl md:text-3xl font-bold">Home</h1>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">
+            Anonymous posts from your community
+          </p>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 md:px-6 py-4 md:py-6 max-w-2xl mx-auto">
 {/* Create Post */}
         <Card className="mb-3 p-2">
           <div className="flex items-center gap-2">
@@ -767,14 +793,16 @@ const Home = () => {
                       <span className="text-[10px] text-muted-foreground">· {formatTime(post.created_at)}</span>
                     </div>
                     <div className="relative menu-container">
-                      <button
-                        onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)}
-                        className="p-1 hover:bg-white/10 rounded-full text-white transition-colors"
-                      >
-                        <MoreHorizontal className="w-5 h-5" />
-                      </button>
-                      {/* Dropdown Menu */}
-                      {openMenuId === post.id && (
+                      {currentUserId === post.user_id && (
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === post.id ? null : post.id)}
+                          className="p-1 hover:bg-white/10 rounded-full text-white transition-colors"
+                        >
+                          <MoreHorizontal className="w-5 h-5" />
+                        </button>
+                      )}
+                      {/* Dropdown Menu - Only show for post owner */}
+                      {openMenuId === post.id && currentUserId === post.user_id && (
                         <div className="absolute right-0 top-8 bg-[#1A221F] border border-border rounded-lg shadow-lg z-10 py-1 min-w-[120px]">
                           <button
                             onClick={() => handleEdit(post.id, post.content)}

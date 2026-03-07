@@ -16,8 +16,8 @@ import Home from "@/pages/Home";
 const PAGES = [
   { path: "/home", icon: HomeIcon, label: "Home" },
   { path: "/discover", icon: Compass, label: "Discover" },
-  { path: "/chats", icon: MessageCircle, label: "Chats" },
   { path: "/matches", icon: Heart, label: "Matches" },
+  { path: "/chats", icon: MessageCircle, label: "Chats" },
   { path: "/settings", icon: User, label: "Profile" },
 ];
 
@@ -313,7 +313,7 @@ const MainLayout = () => {
         >
           {/* Home - Anonymous Posts */}
           <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
             style={{ height: '100dvh' }}
           >
             <Home />
@@ -321,31 +321,31 @@ const MainLayout = () => {
           
           {/* Discover */}
           <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
             style={{ height: '100dvh' }}
           >
             <Discover />
           </div>
           
-          {/* Chats */}
-          <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
-            style={{ height: '100dvh' }}
-          >
-            <ChatList />
-          </div>
-          
           {/* Matches */}
           <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
             style={{ height: '100dvh' }}
           >
             <Matches />
           </div>
           
+          {/* Chats */}
+          <div 
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
+            style={{ height: '100dvh' }}
+          >
+            <ChatList />
+          </div>
+          
           {/* Profile/Settings */}
           <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 hide-scrollbar"
+            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
             style={{ height: '100dvh' }}
           >
             <SettingsPage />
