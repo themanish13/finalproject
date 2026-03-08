@@ -896,7 +896,7 @@ const Chat = () => {
                         </div>
                       )}
                       
-                      {/* Media */}
+                        {/* Media */}
                       {message.media_url && !message.is_unsent && (
                         <div 
                           className={cn(
@@ -915,14 +915,14 @@ const Chat = () => {
                           {message.media_type === 'video' ? (
                             <video 
                               src={message.media_url} 
-                              className="max-w-full rounded-2xl max-h-64" 
+                              className="max-w-full rounded-2xl max-h-[400px] object-contain" 
                               controls 
                             />
                           )  : (
                             <img 
                               src={message.media_url} 
                               alt="Shared" 
-                              className="max-w-full rounded-2xl max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              className="max-w-full rounded-2xl max-h-[400px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => setFullscreenImage({ src: message.media_url!, isOpen: true })}
                             />
                           )}

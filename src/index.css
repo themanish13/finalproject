@@ -250,12 +250,12 @@
     position: relative;
     font-size: 0.7em;
     padding: 0.4em 0.8em;
-    background-color: #972837;
+    background-color: #15613a;
     text-decoration: none;
     border: none;
     border-radius: 0.5em;
     color: #DEDEDE;
-    box-shadow: 0.3em 0.3em 0.3em rgba(0, 0, 0, 0.3);
+    box-shadow: 0.3em 0.3em 0.3em rgba(21, 23, 22, 0.3);
     cursor: pointer;
     transition: all 0.2s ease;
   }
@@ -267,7 +267,7 @@
     width: 0;
     top: 0;
     left: 0;
-    background: linear-gradient(135deg, rgb(109, 69, 69) 0%, rgba(33,33,33,1) 50%, rgb(219, 124, 160) 50%, rgb(175, 69, 161) 60%);
+    background: linear-gradient(135deg, rgb(13, 14, 13) 0%, rgb(39, 38, 38) 50%, rgb(32, 120, 57) 50%, rgb(29, 99, 55) 60%);
     border-radius: 0 0 0.5em 0;
     box-shadow: 0.15em 0.15em 0.15em rgba(0, 0, 0, 0.3);
     transition: 0.3s;

@@ -47,7 +47,7 @@ const Matches = () => {
       id: matchedUserId,
       name: match.profile?.name || "Unknown",
       avatar_url: match.profile?.avatar_url,
-      bio: match.profile?.bio,
+      bio: (match.profile as any)?.bio,
       matchedAt: new Date(match.matched_at).toLocaleDateString(),
       lastMessage: match.lastMessage?.content,
       lastMessageSender: match.lastMessage?.sender_id === currentUserId ? 'me' : 'them',

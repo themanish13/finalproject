@@ -1,10 +1,11 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { motion, useMotionValue } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Compass, Heart, MessageCircle, User, Home as HomeIcon } from "lucide-react";
 import Navbar from "./Navbar";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/hooks/useAuth";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
+import { useProfileViewer } from "@/contexts/ProfileViewerContext";
 
 // Pages
 import Discover from "@/pages/Discover";
@@ -14,16 +15,16 @@ import SettingsPage from "@/pages/Settings";
 import Home from "@/pages/Home";
 
 const PAGES = [
-  { path: "/home", icon: HomeIcon, label: "Home" },
-  { path: "/discover", icon: Compass, label: "Discover" },
-  { path: "/matches", icon: Heart, label: "Matches" },
-  { path: "/chats", icon: MessageCircle, label: "Chats" },
-  { path: "/settings", icon: User, label: "Profile" },
+  { path: "/home", label: "Home" },
+  { path: "/discover", label: "Discover" },
+  { path: "/matches", label: "Matches" },
+  { path: "/chats", label: "Chats" },
+  { path: "/settings", label: "Settings" },
 ];
 
-// Swipe configuration - Instagram-style
-const SWIPE_THRESHOLD = 30; // Reduced from 60 for more responsive swipes
-const VELOCITY_THRESHOLD = 0.25; // Slightly reduced for better sensitivity
+// Swipe configuration - EXACTLY as was - NO CHANGES
+const SWIPE_THRESHOLD = 30;
+const VELOCITY_THRESHOLD = 0.25;
 const TRANSITION_DURATION = "0.28s";
 const TRANSITION_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const EDGE_RESISTANCE = 0.35;
@@ -31,18 +32,19 @@ const EDGE_RESISTANCE = 0.35;
 const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { signOut } = useAuthStore();
+  const { closeProfile } = useProfileViewer();
   
   // Get unread counts for notifications
   const { totalUnread } = useUnreadCounts({
-    userId: user?.id || '',
-    enabled: !!user,
+    userId: '',
+    enabled: false,
   });
   
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   
-  // Use refs for better performance (avoids re-renders)
+  // Use refs for better performance
   const currentIndex = useRef(0);
   const startX = useRef(0);
   const currentX = useRef(0);
@@ -82,13 +84,12 @@ const MainLayout = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [x]);
 
-  // Check if swipe is allowed - simplified to always allow unless in input field
+  // Check if swipe is allowed
   const checkSwipeAllowed = useCallback((target: EventTarget | null): boolean => {
     if (!target || !(target instanceof Element)) return true;
     
     const tagName = target.tagName.toLowerCase();
     
-    // Only block when actively typing in an input/textarea
     if (tagName === 'input' || tagName === 'textarea') {
       return document.activeElement !== target;
     }
@@ -106,7 +107,6 @@ const MainLayout = () => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     
-    // Don't start swipe if touching interactive elements or chat items
     const closestInteractive = target.closest('a, button, [role="button"], .chat-list-item, [data-chat-item]');
     if (closestInteractive) return;
     
@@ -115,7 +115,6 @@ const MainLayout = () => {
     startTime.current = Date.now();
     isDragging.current = true;
     
-    // Disable transition during drag for immediate response
     wrapper.style.transition = "none";
     wrapper.style.willChange = "transform";
   };
@@ -131,7 +130,6 @@ const MainLayout = () => {
 
     let translate = -currentIndex.current * window.innerWidth + deltaX;
 
-    // Edge resistance at boundaries
     if (currentIndex.current === 0 && deltaX > 0) {
       translate = -currentIndex.current * window.innerWidth + deltaX * EDGE_RESISTANCE;
     } else if (currentIndex.current === PAGES.length - 1 && deltaX < 0) {
@@ -155,19 +153,14 @@ const MainLayout = () => {
 
     let newIndex = currentIndex.current;
 
-    // Check if swipe meets threshold or velocity
     if (Math.abs(deltaX) > SWIPE_THRESHOLD || Math.abs(velocity) > VELOCITY_THRESHOLD) {
-      // Swipe LEFT - only if not on last page
       if (deltaX < 0 && currentIndex.current < PAGES.length - 1) {
         newIndex = currentIndex.current + 1;
-      } 
-      // Swipe RIGHT - only if not on first page
-      else if (deltaX > 0 && currentIndex.current > 0) {
+      } else if (deltaX > 0 && currentIndex.current > 0) {
         newIndex = currentIndex.current - 1;
       }
     }
 
-    // Animate to new position
     isAnimating.current = true;
     currentIndex.current = newIndex;
     
@@ -175,17 +168,16 @@ const MainLayout = () => {
     wrapper.style.transform = `translateX(-${newIndex * 100}vw)`;
     x.set(-newIndex * window.innerWidth);
     
-    // Navigate after animation
     setTimeout(() => {
       isAnimating.current = false;
       navigate(PAGES[newIndex].path);
       wrapper.style.willChange = "auto";
-    }, 280); // Match transition duration
+    }, 280);
     
     if (navigator.vibrate) navigator.vibrate(10);
   };
 
-  // Mouse handlers (for desktop)
+  // Mouse handlers (for desktop swipe)
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isAnimating.current) return;
     
@@ -195,7 +187,6 @@ const MainLayout = () => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     
-    // Don't start swipe if clicking on interactive elements or chat items
     const closestInteractive = target.closest('a, button, [role="button"], .chat-list-item, [data-chat-item]');
     if (closestInteractive) return;
     
@@ -219,7 +210,6 @@ const MainLayout = () => {
 
     let translate = -currentIndex.current * window.innerWidth + deltaX;
 
-    // Edge resistance at boundaries
     if (currentIndex.current === 0 && deltaX > 0) {
       translate = -currentIndex.current * window.innerWidth + deltaX * EDGE_RESISTANCE;
     } else if (currentIndex.current === PAGES.length - 1 && deltaX < 0) {
@@ -279,7 +269,11 @@ const MainLayout = () => {
     }
   };
 
-  // Get current index for rendering
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
   const activeIndex = PAGES.findIndex(p => p.path === location.pathname);
 
   return (
@@ -289,71 +283,73 @@ const MainLayout = () => {
         <Navbar />
       </div>
       
-      <div 
-        ref={containerRef}
-        className="fixed inset-0 overflow-hidden bg-background lg:top-20 lg:pt-0 hide-scrollbar"
-        style={{ height: '100dvh', width: '100vw' }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-      >
-        {/* Pages Container */}
-        <div
-          ref={wrapperRef}
-          className="flex h-full hide-scrollbar"
-          style={{ 
-            width: `${PAGES.length * 100}vw`,
-            willChange: "transform",
-            transform: `translateX(-${activeIndex * 100}vw)`
-          }}
+      <div className="flex h-screen w-screen overflow-hidden bg-background">
+        {/* Main Content Area */}
+        <div 
+          ref={containerRef}
+          className="flex-1 overflow-hidden"
+          style={{ height: '100dvh' }}
         >
-          {/* Home - Anonymous Posts */}
           <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
-            style={{ height: '100dvh' }}
+            ref={wrapperRef}
+            className="flex h-full hide-scrollbar"
+            style={{ 
+              width: `${PAGES.length * 100}vw`,
+              willChange: "transform",
+              transform: `translateX(-${activeIndex * 100}vw)`
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
           >
-            <Home />
-          </div>
-          
-          {/* Discover */}
-          <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
-            style={{ height: '100dvh' }}
-          >
-            <Discover />
-          </div>
-          
-          {/* Matches */}
-          <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
-            style={{ height: '100dvh' }}
-          >
-            <Matches />
-          </div>
-          
-          {/* Chats */}
-          <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
-            style={{ height: '100dvh' }}
-          >
-            <ChatList />
-          </div>
-          
-          {/* Profile/Settings */}
-          <div 
-            className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
-            style={{ height: '100dvh' }}
-          >
-            <SettingsPage />
+            {/* Home - Anonymous Posts */}
+            <div 
+              className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
+              style={{ height: '100dvh' }}
+            >
+              <Home />
+            </div>
+            
+            {/* Discover */}
+            <div 
+              className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
+              style={{ height: '100dvh' }}
+            >
+              <Discover />
+            </div>
+            
+            {/* Matches */}
+            <div 
+              className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
+              style={{ height: '100dvh' }}
+            >
+              <Matches />
+            </div>
+            
+            {/* Chats */}
+            <div 
+              className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
+              style={{ height: '100dvh' }}
+            >
+              <ChatList />
+            </div>
+            
+            {/* Profile/Settings */}
+            <div 
+              className="w-screen h-screen flex-shrink-0 overflow-y-auto touch-scrollable pb-20 lg:pb-0 hide-scrollbar"
+              style={{ height: '100dvh' }}
+            >
+              <SettingsPage />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Mobile Only */}
       <motion.div 
         className="fixed bottom-0 left-0 right-0 z-[9999] lg:hidden bg-[#0E0F0F] opacity-100"
         initial={{ y: 100 }}
@@ -363,13 +359,26 @@ const MainLayout = () => {
         <div className="flex items-center justify-around h-16 px-2 pb-[env(safe-area-inset-bottom)] border-t border-border/50">
           {PAGES.map((item, index) => {
             const isActive = activeIndex === index;
-            const Icon = item.icon;
-            const showBadge = index === 2 && totalUnread > 0;
+            
+            const getIcon = () => {
+              switch(item.path) {
+                case '/home': return HomeIcon;
+                case '/discover': return Compass;
+                case '/matches': return Heart;
+                case '/chats': return MessageCircle;
+                case '/settings': return User;
+                default: return HomeIcon;
+              }
+            };
+            
+            const Icon = getIcon();
+            const showBadge = index === 3 && totalUnread > 0;
             
             return (
               <button
                 key={item.path}
                 onClick={() => {
+                  closeProfile();
                   if (index !== activeIndex) {
                     if (navigator.vibrate) navigator.vibrate(10);
                     
@@ -403,7 +412,6 @@ const MainLayout = () => {
                         isActive ? "text-white" : "text-white"
                       }`} 
                     />
-                    {/* Notification Badge */}
                     {showBadge && (
                       <motion.span
                         initial={{ scale: 0 }}
@@ -423,7 +431,6 @@ const MainLayout = () => {
                   {item.label}
                 </span>
                 
-                {/* Active indicator dot */}
                 {isActive && (
                   <motion.div
                     layoutId="activeIndicator"

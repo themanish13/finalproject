@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { useAuth, useAuthStore } from "@/hooks/useAuth";
+import { ProfileViewerProvider } from "@/contexts/ProfileViewerContext";
+import GlobalProfileViewer from "@/components/GlobalProfileViewer";
 
 const routerFutureConfig = {
   future: {
@@ -147,13 +149,16 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter future={routerFutureConfig.future}>
-          <AuthLoader>
-            <AppRoutes />
-          </AuthLoader>
-        </BrowserRouter>
+        <ProfileViewerProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter future={routerFutureConfig.future}>
+            <AuthLoader>
+              <AppRoutes />
+            </AuthLoader>
+          </BrowserRouter>
+          <GlobalProfileViewer />
+        </ProfileViewerProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
