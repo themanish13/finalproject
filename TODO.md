@@ -1,26 +1,26 @@
-# Task: Fix Swipe Container & Home Page Integration
+# TODO - Profile Viewer Component
 
-## Status: Completed
+## Task
+Create a reusable profile viewer component. When a user avatar is clicked in the Home or Discover feed, open a centered profile view.
 
-### Steps:
-- [x] Read and understand MainLayout.tsx and Home.tsx
-- [x] Fix wrapper width from `w-[500vw]` to dynamic calculation
-- [x] Verify Home page is properly integrated
-- [x] Update Home page with requested features
+## Design Requirements
+- Dark background overlay
+- Large circular profile photo in the center
+- Cyan/teal glowing border around the circle
+- Username shown below the photo in bold light beige
+- Back arrow in the top-left corner to return to the previous page
 
-### Implementation:
-1. Changed hardcoded `w-[500vw]` to dynamic width using inline style: `style={{ width: \`${PAGES.length * 100}vw\` }}`
+## Rules
+- Only show the avatar in the feed
+- Clicking the avatar opens the full profile viewer
+- No timestamp or extra information
+- Keep the layout minimal, centered, and balanced
 
-### Changes Made:
-- MainLayout.tsx: Replaced `w-[500vw]` with dynamic `width: ${PAGES.length * 100}vw`
-- Home.tsx: Completely updated with new features:
-  - Removed share option
-  - Added delete icon (Trash2) at top-right of each post
-  - Made styling more compact (Facebook-style)
-  - Posts in reverse chronological order
-  - Anonymous label at top-left
-  - Like button with real-time counter
-  - Comment section with input and submit button
-  - Compact timestamp display
-  - Realtime updates for posts, likes, comments, and deletes
+## Implementation Steps
+
+- [x] 1. Create ProfileViewer component
+- [x] 2. Update UserCard to open ProfileViewer on avatar click
+- [x] 3. Integrate ProfileViewer in Home.tsx
+- [x] 4. Test the component
+
 

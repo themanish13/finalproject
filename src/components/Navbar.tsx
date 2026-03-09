@@ -4,10 +4,12 @@ import { Heart, Compass, Settings, Loader2, MessageCircle, Home as HomeIcon } fr
 import { Button } from "@/components/ui/button";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useProfileViewer } from "@/contexts/ProfileViewerContext";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { closeProfile } = useProfileViewer();
 
   const [userName, setUserName] = useState(() => {
     return localStorage.getItem('navbar_userName') || "";
@@ -102,7 +104,14 @@ const Navbar = () => {
   };
 
   const handleAvatarClick = () => {
+    closeProfile();
     navigate("/settings");
+  };
+
+  // Handle navigation - close profile viewer first if open
+  const handleNavClick = (path: string) => {
+    closeProfile();
+    navigate(path);
   };
 
   const navItems = [
@@ -134,7 +143,7 @@ const Navbar = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex items-center gap-3 cursor-pointer"
-              onClick={() => navigate("/home")}
+              onClick={() => handleNavClick("/home")}
             >
               <div className="relative w-10 h-[36px] md:w-12 md:h-[43px] rounded-lg overflow-hidden">
                 <img 
@@ -153,7 +162,7 @@ const Navbar = () => {
                   key={item.path}
                   variant={isActive(item.path) ? "secondary" : "ghost"}
                   size="sm"
-                  onClick={() => navigate(item.path)}
+                  onClick={() => handleNavClick(item.path)}
                   className={isActive(item.path)
                     ? "bg-[var(--secondary)] !text-white"
                     : "text-white hover:text-white hover:bg-[var(--secondary)] !text-white"
