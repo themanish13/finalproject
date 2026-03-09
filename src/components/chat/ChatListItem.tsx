@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, CheckCheck, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { useShowProfile } from "@/contexts/ProfileViewerContext";
 
 interface ChatListItemProps {
   id: string;
@@ -28,9 +29,16 @@ const ChatListItem = ({
   isTyping = false,
 }: ChatListItemProps) => {
   const navigate = useNavigate();
+  const { showProfile } = useShowProfile();
 
   const handleClick = () => {
     navigate(`/chat?matchId=${id}`);
+  };
+
+  // Handle avatar click to show profile viewer
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    showProfile(name, avatar_url, name.charAt(0).toUpperCase(), id);
   };
 
   return (
@@ -49,11 +57,14 @@ const ChatListItem = ({
     >
       {/* Avatar */}
       <div className="relative flex-shrink-0">
-        <div className={cn(
-          "w-14 h-14 rounded-full overflow-hidden",
-          "bg-gradient-to-br from-primary/30 to-primary/10",
-          unreadCount > 0 ? "ring-2 ring-primary" : "ring-2 ring-primary/20"
-        )}>
+        <div 
+          className={cn(
+            "w-14 h-14 rounded-full overflow-hidden cursor-pointer",
+            "bg-gradient-to-br from-primary/30 to-primary/10",
+            unreadCount > 0 ? "ring-2 ring-primary" : "ring-2 ring-primary/20"
+          )}
+          onClick={handleAvatarClick}
+        >
           {avatar_url ? (
             <img
               src={avatar_url}

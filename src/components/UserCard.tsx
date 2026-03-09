@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { useShowProfile } from "@/contexts/ProfileViewerContext";
 
 interface User {
   id: string;
@@ -23,12 +24,20 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const lastTapRef = useRef<number>(0);
   const navigate = useNavigate();
+  const { showProfile } = useShowProfile();
 
   const initials = user.name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase();
+
+  // Handle tap to show profile viewer (double tap or long press)
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Show profile viewer with user info
+    showProfile(user.name, user.avatar_url, initials, user.id, user.bio);
+  };
 
   // Haptic vibration and animation when selecting a crush
   const handleClick = () => {
@@ -75,11 +84,12 @@ const UserCard = ({ user, isSelected, onSelect }: UserCardProps) => {
           <motion.div
             animate={isSelected ? { scale: [1, 1.05, 1] } : isAnimating ? { scale: [1, 1.08, 1] } : {}}
             transition={{ duration: 0.2 }}
-            className={`w-20 h-20 md:w-24 md:h-24 rounded-xl flex items-center justify-center transition-all duration-200 overflow-hidden ${
+            className={`w-20 h-20 md:w-24 md:h-24 rounded-xl flex items-center justify-center transition-all duration-200 overflow-hidden cursor-pointer ${
               isSelected
                 ? "bg-gradient-to-br from-primary-light to-primary"
                 : "bg-secondary border border-border"
             }`}
+            onClick={handleAvatarClick}
           >
             {user.avatar_url ? (
               <img

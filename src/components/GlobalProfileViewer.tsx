@@ -1,5 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 import { useProfileViewer } from "@/contexts/ProfileViewerContext";
 
 const GlobalProfileViewer = () => {
@@ -50,6 +51,14 @@ const GlobalProfileViewer = () => {
             className="relative z-10 flex flex-col items-center"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Close button */}
+            <button
+              onClick={closeProfile}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+
             {/* Circle with photo */}
             <div
               className="w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden shadow-2xl"
@@ -71,7 +80,7 @@ const GlobalProfileViewer = () => {
                 // Fallback background if no avatar
                 <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
                   <span className="text-6xl md:text-7xl font-light text-neutral-500">
-                    {profile.name?.charAt(0)?.toUpperCase() || "?"}
+                    {profile.userInitials || profile.name?.charAt(0)?.toUpperCase() || "?"}
                   </span>
                 </div>
               )}

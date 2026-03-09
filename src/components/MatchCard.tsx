@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { useShowProfile } from "@/contexts/ProfileViewerContext";
 
 interface MatchCardProps {
   id: string;
@@ -27,6 +28,13 @@ const MatchCard = ({
   hasUnread = false,
 }: MatchCardProps) => {
   const navigate = useNavigate();
+  const { showProfile } = useShowProfile();
+
+  // Handle avatar click to show profile viewer
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    showProfile(name, avatar_url, name.charAt(0).toUpperCase(), id, bio);
+  };
 
   return (
     <div
@@ -42,11 +50,14 @@ const MatchCard = ({
         <div className="flex items-start gap-4">
           {/* Circular Avatar */}
           <div className="relative flex-shrink-0">
-            <div className={cn(
-              "w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden",
-              "bg-gradient-to-br from-primary to-primary/70",
-              hasUnread ? "ring-2 ring-primary" : "ring-2 ring-primary/30"
-            )}>
+            <div 
+              className={cn(
+                "w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden cursor-pointer",
+                "bg-gradient-to-br from-primary to-primary/70",
+                hasUnread ? "ring-2 ring-primary" : "ring-2 ring-primary/30"
+              )}
+              onClick={handleAvatarClick}
+            >
               {avatar_url ? (
                 <img
                   src={avatar_url}
