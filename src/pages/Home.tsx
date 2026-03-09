@@ -60,6 +60,7 @@ const Home = () => {
   const [showReplies, setShowReplies] = useState<Record<string, boolean>>({});
   const [newReply, setNewReply] = useState<Record<string, string>>({});
   const [postingReply, setPostingReply] = useState<Record<string, boolean>>({});
+  const [replyCounts, setReplyCounts] = useState<Record<string, number>>({});
   
   // Comment likes state
   const [commentLikes, setCommentLikes] = useState<Record<string, { count: number; isLiked: boolean }>>({});
