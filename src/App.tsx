@@ -8,22 +8,36 @@ import { useAuth, useAuthStore } from "@/hooks/useAuth";
 import { ProfileViewerProvider } from "@/contexts/ProfileViewerContext";
 import GlobalProfileViewer from "@/components/GlobalProfileViewer";
 
+// Lazy load pages for better performance
+import { lazy, Suspense, useEffect } from "react";
+
 const routerFutureConfig = {
   future: {
     v7_startTransition: true,
     v7_relativeSplatPath: true,
   },
 };
-import { useEffect } from "react";
-import Landing from "./pages/Landing";
-import Auth from "./pages/Auth";
-import ProfileSetup from "./pages/ProfileSetup";
-import Chat from "./pages/Chat";
-import Home from "./pages/Home";
-import NotFound from "./pages/NotFound";
-import MainLayout from "./components/MainLayout";
 
-const queryClient = new QueryClient();
+// Lazy load pages
+const Landing = lazy(() => import("./pages/Landing"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
+const Chat = lazy(() => import("./pages/Chat"));
+const Home = lazy(() => import("./pages/Home"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const MainLayout = lazy(() => import("./components/MainLayout"));
+
+// Optimized QueryClient with better caching
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 // Loading screen while checking auth
 const AuthLoader = ({ children }: { children: React.ReactNode }) => {
@@ -79,7 +93,17 @@ const AppRoutes = () => {
   }
   
   return (
-    <Routes>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="relative w-20 h-20">
+          <span className="z-loading z-1">Z</span>
+          <span className="z-loading z-2">Z</span>
+          <span className="z-loading z-3">Z</span>
+          <span className="z-loading z-4">Z</span>
+        </div>
+      </div>
+    }>
+      <Routes>
       <Route path="/" element={user ? <Navigate to="/home" replace /> : <Landing />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
@@ -139,6 +163,7 @@ const AppRoutes = () => {
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 };
 
