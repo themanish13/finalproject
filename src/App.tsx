@@ -11,6 +11,9 @@ import GlobalProfileViewer from "@/components/GlobalProfileViewer";
 // Lazy load pages for better performance
 import { lazy, Suspense, useEffect } from "react";
 
+// Initialize chat cache on app startup
+import { initializeCache } from "@/utils/chatCache";
+
 const routerFutureConfig = {
   future: {
     v7_startTransition: true,
@@ -18,7 +21,7 @@ const routerFutureConfig = {
   },
 };
 
-// Lazy load pages
+// Lazy load pages - use default export
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
 const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
@@ -170,6 +173,11 @@ const AppRoutes = () => {
 const App = () => {
   // Initialize auth - this sets initialized = true
   useAuth();
+
+  // Initialize chat cache on app startup
+  useEffect(() => {
+    initializeCache().catch(console.error);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

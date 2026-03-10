@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { MessageCircle, Search, Loader2, MessageSquareDiff } from "lucide-react";
 import ChatListItem from "@/components/chat/ChatListItem";
@@ -7,6 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+// Cache utilities
+import { cacheChatList, loadCachedChatList, preloadAvatars } from "@/utils/chatCache";
 
 interface ChatUser {
   id: string;
@@ -24,12 +27,126 @@ const ChatList = () => {
   const [chats, setChats] = useState<ChatUser[]>([]);
   const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // Load cached chats on mount, then fetch fresh data
   useEffect(() => {
+    // First, try to load from cache for instant display
+    loadChatsFromCache();
+    
+    // Then fetch fresh data
     loadChats();
+    
+    // Set up interval for background refresh (every 30 seconds)
+    const refreshInterval = setInterval(() => {
+      refreshChats();
+    }, 30000);
+    
+    return () => clearInterval(refreshInterval);
   }, []);
+
+  // Load chats from cache for instant display
+  const loadChatsFromCache = async () => {
+    try {
+      const cached = await loadCachedChatList();
+      if (cached && cached.chats.length > 0) {
+        setChats(cached.chats);
+        // Preload avatars in the background
+        preloadAvatars(cached.chats);
+      }
+    } catch (error) {
+      console.error("Error loading cached chats:", error);
+    }
+  };
+
+  // Refresh chats in background
+  const refreshChats = useCallback(async () => {
+    if (isRefreshing) return;
+    
+    try {
+      setIsRefreshing(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Fetch fresh data (same logic as loadChats but without setting loading state)
+      const { data: messagesData } = await supabase
+        .from("messages")
+        .select("sender_id, receiver_id, content, created_at, read_at, is_unsent, deleted_for_sender, deleted_for_receiver")
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order("created_at", { ascending: false });
+
+      if (messagesData) {
+        const userIds = new Set<string>();
+        const userLastMessages: Record<string, { content: string; created_at: string; sender_id: string; read_at: string | null }> = {};
+        
+        messagesData.forEach(msg => {
+          if (msg.is_unsent) return;
+          if (msg.sender_id !== user.id && msg.deleted_for_receiver) return;
+          if (msg.sender_id === user.id && msg.deleted_for_sender) return;
+          
+          const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+          userIds.add(otherUserId);
+          
+          if (!userLastMessages[otherUserId] || new Date(msg.created_at) > new Date(userLastMessages[otherUserId].created_at)) {
+            userLastMessages[otherUserId] = {
+              content: msg.content,
+              created_at: msg.created_at,
+              sender_id: msg.sender_id,
+              read_at: msg.read_at
+            };
+          }
+        });
+
+        if (userIds.size > 0) {
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, name, avatar_url")
+            .in("id", Array.from(userIds));
+
+          const chatUsers: ChatUser[] = Array.from(userIds).map(userId => {
+            const profile = profiles?.find(p => p.id === userId);
+            const lastMsg = userLastMessages[userId];
+            const unreadCount = messagesData?.filter(
+              msg => msg.sender_id === userId && msg.receiver_id === user.id && 
+                     !msg.read_at && !msg.is_unsent && 
+                     !(msg.sender_id !== user.id && msg.deleted_for_receiver) &&
+                     !(msg.sender_id === user.id && msg.deleted_for_sender)
+            ).length || 0;
+
+            return {
+              id: userId,
+              name: profile?.name || "Unknown",
+              avatar_url: profile?.avatar_url,
+              lastMessage: lastMsg?.content,
+              lastMessageTime: lastMsg?.created_at 
+                ? new Date(lastMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : undefined,
+              lastMessageSender: lastMsg?.sender_id === user.id ? 'me' : 'them',
+              unreadCount,
+            };
+          });
+
+          chatUsers.sort((a, b) => {
+            const timeA = userLastMessages[a.id]?.created_at;
+            const timeB = userLastMessages[b.id]?.created_at;
+            if (!timeA) return 1;
+            if (!timeB) return -1;
+            return new Date(timeB).getTime() - new Date(timeA).getTime();
+          });
+
+          // Update state and cache
+          setChats(chatUsers);
+          await cacheChatList(chatUsers);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing chats:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing]);
 
   const loadChats = async () => {
     try {
@@ -122,6 +239,12 @@ const ChatList = () => {
         });
 
         setChats(chatUsers);
+        
+        // Cache the chat list for instant loading next time
+        await cacheChatList(chatUsers);
+        
+        // Preload avatars in the background
+        preloadAvatars(chatUsers);
       }
 
       // Also load all profiles for starting new chats

@@ -9,6 +9,10 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useNavigate, useLocation } from "react-router-dom";
 
+// Swipe detection constants
+const SWIPE_THRESHOLD = 50;
+const VELOCITY_THRESHOLD = 0.3;
+
 // Chat components
 import { 
   MessageInput, 
@@ -22,6 +26,21 @@ import { useChatStore, ChatMessage } from "@/store/chatStore";
 
 // Hooks
 import { useChatRealtime } from "@/hooks/useChatRealtime";
+
+// Cache utilities
+import { 
+  cacheMessages,
+  invalidateChatListCache, 
+  loadCachedMessages, 
+  saveScrollPosition, 
+  loadScrollPosition,
+  saveDraft,
+  loadDraft,
+  clearDraft,
+} from "@/utils/chatCache";
+
+// Skeleton components
+import { ChatSkeleton } from "@/components/chat/ChatSkeleton";
 
 interface MatchInfo {
   id: string;
@@ -49,10 +68,15 @@ const Chat = () => {
   const {
     messages: storeMessages,
     isLoading,
+    isLoadingMore,
+    hasMoreMessages,
     isAtBottom,
     setLoading,
+    setLoadingMore,
+    setHasMore,
     addMessage,
     setMessages,
+    prependMessages,
     updateMessage,
     removeMessage,
     setCurrentChat,
@@ -63,6 +87,23 @@ const Chat = () => {
     setIsAtBottom,
     currentUserId: storeCurrentUserId,
   } = useChatStore();
+
+  // Scroll helper functions
+  const performScrollToBottom = useCallback(() => {
+    const scrollToView = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    };
+    
+    scrollToView();
+    requestAnimationFrame(() => {
+      scrollToView();
+      setTimeout(scrollToView, 150);
+    });
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // Local state (non-message related)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -126,9 +167,19 @@ const Chat = () => {
   // State for message input
   const [newMessage, setNewMessage] = useState("");
   
+  // Cache state for instant loading
+  const [isLoadingFromCache, setIsLoadingFromCache] = useState(false);
+  const [hasCacheLoaded, setHasCacheLoaded] = useState(false);
+  
   // Track initial load
   const isInitialLoad = useRef(true);
   const hasScrolledToBottom = useRef(false);
+  const previousChatIdRef = useRef<string | null>(null);
+
+  // Swipe gesture state for going back
+  const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
+  const [isSwiping, setIsSwiping] = useState(false);
 
   // Use realtime hook when we have chat ID and user ID
   useChatRealtime({
@@ -142,6 +193,90 @@ const Chat = () => {
       }
     },
   });
+
+  // Pagination: Load more messages when scrolling to top
+  const loadMoreMessages = async () => {
+    if (!matchId || !currentUserId || !hasMoreMessages || isLoadingMore) return;
+    
+    try {
+      setLoadingMore(true);
+      
+      // Get the oldest message timestamp
+      const oldestTimestamp = storeMessages.length > 0 
+        ? storeMessages.reduce((oldest, msg) => 
+            new Date(msg.created_at) < new Date(oldest) ? msg.created_at : oldest
+          , storeMessages[0].created_at)
+        : null;
+      
+      if (!oldestTimestamp) return;
+      
+      // Fetch older messages (before the oldest one)
+      const { data: olderMessages } = await supabase
+        .from("messages")
+        .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id, status, delivered_at")
+        .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${matchId}),and(sender_id.eq.${matchId},receiver_id.eq.${currentUserId})`)
+        .or("is_unsent.is.null,is_unsent.eq.false")
+        .lt("created_at", oldestTimestamp)
+        .order("created_at", { ascending: true })
+        .limit(50);
+      
+      if (olderMessages && olderMessages.length > 0) {
+        // Filter out deleted messages
+        const filteredMessages = olderMessages.filter(msg => 
+          !deletedMessageIdsRef.current.has(msg.id) && 
+          !deletedForMeIdsRef.current.has(msg.id)
+        );
+        
+        // Load reply content for older messages
+        const messagesWithReplies = await Promise.all(
+          filteredMessages.map(async (msg: any) => {
+            if (msg.reply_to_id) {
+              if (deletedMessageIdsRef.current.has(msg.reply_to_id) || deletedForMeIdsRef.current.has(msg.reply_to_id)) {
+                return { ...msg, reply_to_id: null, reply_to_content: "Message" };
+              }
+              const { data: replyMsg } = await supabase
+                .from("messages")
+                .select("content")
+                .eq("id", msg.reply_to_id)
+                .single();
+              return { ...msg, reply_to_content: replyMsg?.content || "Message" };
+            }
+            return msg;
+          })
+        );
+        
+        prependMessages(messagesWithReplies as ChatMessage[]);
+      } else {
+        // No more messages
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more messages:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Handle scroll for pagination - detect when user scrolls near top
+  const handleScroll = useCallback(() => {
+    const container = chatContainerRef.current;
+    if (container) {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      
+      // Check if at bottom
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      const atBottom = distanceFromBottom < 150;
+      
+      if (isAtBottom !== atBottom) {
+        setIsAtBottom(atBottom);
+      }
+      
+      // Check if near top for pagination (within 200px of top)
+      if (scrollTop < 200 && hasMoreMessages && !isLoadingMore && storeMessages.length > 0) {
+        loadMoreMessages();
+      }
+    }
+  }, [isAtBottom, setIsAtBottom, hasMoreMessages, isLoadingMore, storeMessages.length]);
 
   // Close long press popup when clicking outside
   useEffect(() => {
@@ -201,44 +336,13 @@ const Chat = () => {
     return () => {
       if (keyboardTimeout) clearTimeout(keyboardTimeout);
     };
-  }, []);
+  }, [scrollToBottom]);
 
   // Reset scroll state when matchId changes
   useEffect(() => {
     isInitialLoad.current = true;
     hasScrolledToBottom.current = false;
   }, [matchId]);
-
-  // Scroll function
-  const performScrollToBottom = useCallback(() => {
-    const scrollToView = () => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    };
-    
-    scrollToView();
-    requestAnimationFrame(() => {
-      scrollToView();
-      setTimeout(scrollToView, 150);
-    });
-  }, []);
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  // Handle scroll - track if user is at bottom
-  const handleScroll = useCallback(() => {
-    const container = chatContainerRef.current;
-    if (container) {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      const atBottom = distanceFromBottom < 150;
-      
-      if (isAtBottom !== atBottom) {
-        setIsAtBottom(atBottom);
-      }
-    }
-  }, [isAtBottom, setIsAtBottom]);
 
   // Auto-scroll when new messages arrive (only if user is at bottom)
   useEffect(() => {
@@ -265,9 +369,61 @@ const Chat = () => {
   useEffect(() => { 
     loadChatData(); 
     return () => {
+      // Save scroll position before leaving
+      if (matchId && chatContainerRef.current) {
+        saveScrollPosition(matchId, chatContainerRef.current.scrollTop);
+      }
       clearChat();
     };
   }, [matchId]);
+
+  // Save scroll position before leaving
+  useEffect(() => {
+    if (!matchId) return;
+    
+    const handleScroll = () => {
+      if (chatContainerRef.current) {
+        clearTimeout(window.scrollSaveTimeout);
+        window.scrollSaveTimeout = setTimeout(async () => {
+          await saveScrollPosition(matchId, chatContainerRef.current!.scrollTop);
+        }, 500);
+      }
+    };
+    
+    const container = chatContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+    }
+    
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+      clearTimeout(window.scrollSaveTimeout);
+    };
+  }, [matchId]);
+
+  // Save draft message as user types
+  useEffect(() => {
+    if (!matchId || !newMessage.trim()) return;
+    
+    clearTimeout(window.draftSaveTimeout);
+    window.draftSaveTimeout = setTimeout(async () => {
+      await saveDraft(matchId, newMessage);
+    }, 1000);
+    
+    return () => {
+      clearTimeout(window.draftSaveTimeout);
+    };
+  }, [newMessage, matchId]);
+
+  // Clear draft when message is sent
+  useEffect(() => {
+    if (!sending && matchId && newMessage === '') {
+      // Message was sent, clear draft
+      clearDraft(matchId);
+    }
+  }, [sending, matchId, newMessage]);
 
   // Drag and drop handlers
   useEffect(() => {
@@ -338,6 +494,29 @@ const Chat = () => {
       setCurrentChat(matchId || '', user.id);
 
       if (matchId) {
+        // STEP 1: Try to load from cache first for instant display
+        const cachedData = await loadCachedMessages(matchId);
+        
+        if (cachedData && cachedData.messages.length > 0) {
+          // Show cached messages immediately
+          setMessages(cachedData.messages);
+          setIsLoadingFromCache(true);
+          setHasCacheLoaded(true);
+          
+          // Restore scroll position from cache
+          if (cachedData.scrollPosition && chatContainerRef.current) {
+            setTimeout(() => {
+              chatContainerRef.current!.scrollTop = cachedData.scrollPosition!;
+            }, 100);
+          }
+        }
+        
+        // Restore draft message
+        const savedDraft = await loadDraft(matchId);
+        if (savedDraft) {
+          setNewMessage(savedDraft);
+        }
+
         // Load match profile
         const { data: profile } = await supabase.from("profiles").select("id, name, avatar_url").eq("id", matchId).single();
         if (profile) setMatchInfo({ 
@@ -346,7 +525,7 @@ const Chat = () => {
           avatar_url: profile.avatar_url,
         });
 
-        // Load messages
+        // STEP 2: Fetch fresh messages from server
         const { data: messagesData } = await supabase
           .from("messages")
           .select("id, sender_id, content, media_url, media_type, read_at, created_at, is_unsent, reply_to_id, status, delivered_at")
@@ -379,9 +558,17 @@ const Chat = () => {
             })
           );
           
-          // Add messages to store
-          setMessages(messagesWithReplies as ChatMessage[]);
+          // Update store with fresh messages (not replacing if cache is newer)
+          if (!cachedData || cachedData.isExpired || messagesWithReplies.length > cachedData.messages.length) {
+            setMessages(messagesWithReplies as ChatMessage[]);
+          }
+          
+          // Cache the messages for next time
+          cacheMessages(matchId, messagesWithReplies as ChatMessage[]);
         }
+        
+        setIsLoadingFromCache(false);
+        setHasCacheLoaded(true);
 
         // Mark messages as read
         await supabase.from("messages").update({ read_at: new Date().toISOString() })
@@ -515,6 +702,8 @@ const Chat = () => {
       // Remove from store
       removeMessage(messageId);
       setSelectedMessageId(null);
+      // Invalidate chat list cache so it refreshes when returning to chat list
+      invalidateChatListCache();
     } catch (error) {
       console.error("Error deleting message:", error);
     }
@@ -549,6 +738,8 @@ const Chat = () => {
       
       removeMessage(messageId);
       setSelectedMessageId(null);
+      // Invalidate chat list cache so it refreshes when returning to chat list
+      invalidateChatListCache();
     } catch (error) {
       console.error("Error deleting for me:", error);
     }
@@ -557,6 +748,8 @@ const Chat = () => {
   const handleReply = (message: Message) => {
     setReplyToMessage(message);
     setSelectedMessageId(null);
+      // Invalidate chat list cache so it refreshes when returning to chat list
+      invalidateChatListCache();
     inputRef.current?.focus();
   };
 
@@ -574,6 +767,8 @@ const Chat = () => {
       }
     } else if (selectedMessageId === messageId) {
       setSelectedMessageId(null);
+      // Invalidate chat list cache so it refreshes when returning to chat list
+      invalidateChatListCache();
     } else {
       setSelectedMessageId(messageId);
     }
@@ -612,6 +807,32 @@ const Chat = () => {
       clearTimeout(touchTimerRef.current);
       touchTimerRef.current = null;
     }
+  };
+
+  // Swipe handlers for going back from Chat page
+  const handleSwipeTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    swipeStartX.current = touch.clientX;
+    swipeStartY.current = touch.clientY;
+  };
+
+  const handleSwipeTouchEnd = (e: React.TouchEvent) => {
+    if (swipeStartX.current === null || swipeStartY.current === null) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - swipeStartX.current;
+    const deltaY = touch.clientY - swipeStartY.current;
+
+    // Check if it's a horizontal swipe (more horizontal than vertical)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      // Swipe right to go back
+      if (deltaX > SWIPE_THRESHOLD) {
+        navigate(-1);
+      }
+    }
+
+    swipeStartX.current = null;
+    swipeStartY.current = null;
   };
 
   const handlePopupReply = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
@@ -705,14 +926,24 @@ const Chat = () => {
     }
   };
 
-  if (isLoading && !storeMessages.length) {
+  // Show skeleton while loading from cache (instant feel) or full skeleton for fresh load
+  if (isLoading && !storeMessages.length && !hasCacheLoaded) {
     return (
-      <div className="h-[100dvh] bg-background flex items-center justify-center">
-        <div className="relative w-20 h-20">
-          <span className="z-loading z-1">Z</span>
-          <span className="z-loading z-2">Z</span>
-          <span className="z-loading z-3">Z</span>
-          <span className="z-loading z-4">Z</span>
+      <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
+        {/* Header skeleton */}
+        <div className="flex-shrink-0 px-4 py-3 flex items-center gap-3 bg-card border-b border-border">
+          <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+        </div>
+        
+        {/* Messages skeleton */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <ChatSkeleton count={8} />
+        </div>
+        
+        {/* Input skeleton */}
+        <div className="flex-shrink-0 p-4 bg-card border-t border-border">
+          <div className="h-10 bg-muted rounded-full animate-pulse" />
         </div>
       </div>
     );
@@ -723,6 +954,8 @@ const Chat = () => {
       className="h-[100dvh] bg-background flex flex-col overflow-hidden" 
       onClick={() => setLongPressPopup(null)}
       style={{ height: '100dvh' }}
+      onTouchStart={handleSwipeTouchStart}
+      onTouchEnd={handleSwipeTouchEnd}
     >
       {/* Drag overlay */}
       <AnimatePresence>
@@ -802,6 +1035,16 @@ const Chat = () => {
       >
         {/* Fade gradient when scrolling up */}
         <div className="sticky top-0 left-0 right-0 h-4 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
+        
+        {/* Loading more indicator */}
+        {isLoadingMore && (
+          <div className="flex items-center justify-center py-2">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <span>Loading earlier messages...</span>
+            </div>
+          </div>
+        )}
         
         {/* Date headers and messages */}
         {displayMessages.length === 0 ? (

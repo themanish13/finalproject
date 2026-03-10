@@ -18,10 +18,14 @@ interface ChatState {
   // Unread counts - map of chatId to unread count
   unreadCounts: UnreadCountsMap;
   
+  // Pagination
+  oldestMessageTimestamp: string | null; // For loading older messages
+  
   // Actions
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (message: ChatMessage) => void;
   addMessages: (messages: ChatMessage[]) => void;
+  prependMessages: (messages: ChatMessage[]) => void; // For pagination - adds older messages at the beginning
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
   removeMessage: (id: string) => void;
   setLoading: (loading: boolean) => void;
@@ -30,6 +34,7 @@ interface ChatState {
   setCurrentChat: (chatId: string, userId: string) => void;
   clearChat: () => void;
   setIsAtBottom: (isAtBottom: boolean) => void;
+  setOldestTimestamp: (timestamp: string | null) => void;
   
   // Unread count methods
   setUnreadCount: (chatId: string, count: number) => void;
@@ -66,9 +71,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isAtBottom: true,
   pendingAttachments: [],
   unreadCounts: {},
+  oldestMessageTimestamp: null,
 
   // Set all messages (replaces current state)
-  setMessages: (messages) => set({ messages }),
+  setMessages: (messages) => {
+    // Set oldest timestamp for pagination
+    const sortedByDate = [...messages].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const oldest = sortedByDate.length > 0 ? sortedByDate[0].created_at : null;
+    set({ messages, oldestMessageTimestamp: oldest });
+  },
 
   // Add single message (for realtime) - only if not already exists
   addMessage: (message) => set((state) => {
@@ -87,6 +100,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return { messages: [...state.messages, ...uniqueNew] };
   }),
 
+  // Prepend older messages (for pagination - adds at the beginning)
+  prependMessages: (newMessages) => set((state) => {
+    const existingIds = new Set(state.messages.map(m => m.id));
+    const uniqueNew = newMessages.filter(m => !existingIds.has(m.id));
+    
+    if (uniqueNew.length === 0) {
+      return { hasMoreMessages: false };
+    }
+    
+    const combined = [...uniqueNew, ...state.messages];
+    
+    // Update oldest timestamp
+    const sortedByDate = [...combined].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const oldest = sortedByDate.length > 0 ? sortedByDate[0].created_at : null;
+    
+    // If we got fewer messages than requested, there are no more
+    const hasMore = uniqueNew.length >= 50; // Assuming 50 per page
+    
+    return { 
+      messages: combined,
+      oldestMessageTimestamp: oldest,
+      hasMoreMessages: hasMore,
+    };
+  }),
+
   // Update a message (for reactions, read receipts, status, etc.)
   updateMessage: (id, updates) => set((state) => ({
     messages: state.messages.map(m => 
@@ -101,7 +141,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setLoading: (isLoading) => set({ isLoading }),
   setLoadingMore: (isLoadingMore) => set({ isLoadingMore }),
-  setHasMore: (hasMoreMessages) => set({ hasMoreMessages: hasMoreMessages }),
+  setHasMore: (hasMoreMessages) => set({ hasMoreMessages }),
+  
+  setOldestTimestamp: (timestamp) => set({ oldestMessageTimestamp: timestamp }),
 
   setCurrentChat: (chatId, userId) => set({
     currentChatId: chatId,
@@ -115,6 +157,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     lastReadMessageId: null,
     isAtBottom: true,
     pendingAttachments: [],
+    oldestMessageTimestamp: null,
   }),
 
   setIsAtBottom: (isAtBottom) => set({ isAtBottom }),

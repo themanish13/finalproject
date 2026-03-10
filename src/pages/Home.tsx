@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Heart, MessageCircle, Send, Trash2, Loader2, MoreHorizontal, Pencil, User, Eye, EyeOff
@@ -19,6 +19,8 @@ interface Post {
   likes_count?: number;
   comments_count?: number;
   is_liked?: boolean;
+  is_anonymous?: boolean;
+  user_name?: string;
 }
 
 interface Comment {
@@ -28,6 +30,7 @@ interface Comment {
   content: string;
   created_at: string;
   user_name?: string;
+  replyCount?: number;
 }
 
 interface Reply {
@@ -37,7 +40,23 @@ interface Reply {
   content: string;
   created_at: string;
   user_name?: string;
+  nestedReplyCount?: number;
 }
+
+const countAllReplies = async (supabaseClient: typeof supabase, parentIds: string[]): Promise<number> => {
+  if (parentIds.length === 0) return 0;
+  
+  const { data: repliesData } = await supabaseClient
+    .from('comment_replies')
+    .select('id')
+    .in('comment_id', parentIds);
+  
+  const replyIds = repliesData?.map(r => r.id) || [];
+  const directRepliesCount = replyIds.length;
+  const nestedRepliesCount = await countAllReplies(supabaseClient, replyIds);
+  
+  return directRepliesCount + nestedRepliesCount;
+};
 
 const Home = () => {
   const navigate = useNavigate();
@@ -47,35 +66,29 @@ const Home = () => {
   const [currentUserName, setCurrentUserName] = useState<string>('');
   const [newPostContent, setNewPostContent] = useState("");
   const [posting, setPosting] = useState(false);
-  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   
-  // Comments state
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [showComments, setShowComments] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState<Record<string, boolean>>({});
   
-  // Replies state
   const [replies, setReplies] = useState<Record<string, Reply[]>>({});
   const [showReplies, setShowReplies] = useState<Record<string, boolean>>({});
   const [newReply, setNewReply] = useState<Record<string, string>>({});
   const [postingReply, setPostingReply] = useState<Record<string, boolean>>({});
   const [replyCounts, setReplyCounts] = useState<Record<string, number>>({});
   
-  // Comment likes state
   const [commentLikes, setCommentLikes] = useState<Record<string, { count: number; isLiked: boolean }>>({});
   
-  // Menu and edit state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [openCommentMenuId, setOpenCommentMenuId] = useState<string | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   
-  // Use global profile viewer
   const { showProfile } = useShowProfile();
   
-  // Click outside handler to close menu
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (openMenuId && !(e.target as Element).closest('.menu-container')) {
@@ -89,7 +102,6 @@ const Home = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [openMenuId, openCommentMenuId]);
 
-  // Load current user and posts
   useEffect(() => {
     const init = async () => {
       await loadCurrentUser();
@@ -98,8 +110,7 @@ const Home = () => {
     init();
   }, []);
 
-  // Real-time subscriptions
-  useEffect(() => {
+useEffect(() => {
     if (!currentUserId) return;
 
     const postsChannel = supabase
@@ -108,10 +119,13 @@ const Home = () => {
         loadPosts();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'post_likes' }, () => {
-        loadPosts();
+        // Only update like counts locally, don't reload entire page
+        setPosts(prev => prev.map(p => ({ ...p })));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comments' }, () => {
-        loadPosts();
+        // Don't reload entire page - comments are handled locally with optimistic UI
+        // Just trigger a lightweight refresh
+        setPosts(prev => prev.map(p => ({ ...p })));
       })
       .subscribe();
 
@@ -168,12 +182,23 @@ const Home = () => {
             .select('user_id', { count: 'exact', head: true })
             .eq('post_id', post.id);
 
-          const { count: commentsCount } = await supabase
+          const { count: directCommentsCount } = await supabase
             .from('post_comments')
             .select('*', { count: 'exact', head: true })
             .eq('post_id', post.id);
+          
+          const { data: commentData } = await supabase
+            .from('post_comments')
+            .select('id')
+            .eq('post_id', post.id);
+          
+          const commentIds = commentData?.map(c => c.id) || [];
+          const totalRepliesCount = await countAllReplies(supabase, commentIds);
+          const commentsCount = (directCommentsCount || 0) + totalRepliesCount;
 
           let isLiked = false;
+          let userName = 'User';
+          
           if (currentUserId) {
             const { data: likeData } = await supabase
               .from('post_likes')
@@ -183,12 +208,23 @@ const Home = () => {
               .single();
             isLiked = !!likeData;
           }
+          
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', post.user_id)
+            .single();
+          
+          if (profile?.name) {
+            userName = profile.name;
+          }
 
           return {
             ...post,
             likes_count: likesCount || 0,
-            comments_count: commentsCount || 0,
+            comments_count: commentsCount,
             is_liked: isLiked,
+            user_name: userName,
           };
         } catch {
           return {
@@ -196,6 +232,7 @@ const Home = () => {
             likes_count: 0,
             comments_count: 0,
             is_liked: false,
+            user_name: 'User',
           };
         }
       }));
@@ -247,6 +284,12 @@ const Home = () => {
         user_name: comment.user_id === postAuthorId ? 'Anonymous' : (profileMap[comment.user_id] || 'User')
       }));
 
+      const commentsWithReplyCounts = await Promise.all(commentsWithNames.map(async (comment) => {
+        const commentIds = [comment.id];
+        const replyCount = await countAllReplies(supabase, commentIds);
+        return { ...comment, replyCount };
+      }));
+
       const { data: allCommentLikes } = await supabase
         .from('comment_likes')
         .select('comment_id, user_id')
@@ -270,7 +313,13 @@ const Home = () => {
       });
       setCommentLikes(prev => ({ ...prev, ...newCommentLikes }));
 
-      setComments(prev => ({ ...prev, [postId]: commentsWithNames }));
+      const newReplyCounts: Record<string, number> = {};
+      commentsWithReplyCounts.forEach(comment => {
+        newReplyCounts[comment.id] = comment.replyCount || 0;
+      });
+      setReplyCounts(prev => ({ ...prev, ...newReplyCounts }));
+
+      setComments(prev => ({ ...prev, [postId]: commentsWithReplyCounts }));
     } catch (error) {
       console.error('Error loading comments:', error);
     }
@@ -292,6 +341,7 @@ const Home = () => {
         .insert({
           user_id: currentUserId,
           content: newPostContent.trim(),
+          is_anonymous: isAnonymous,
         });
 
       if (error) {
@@ -443,7 +493,13 @@ const Home = () => {
         user_name: profileMap[reply.user_id] || 'User'
       }));
 
-      setReplies(prev => ({ ...prev, [commentId]: repliesWithNames }));
+      const repliesWithCounts = await Promise.all(repliesWithNames.map(async (reply) => {
+        const replyIds = [reply.id];
+        const nestedCount = await countAllReplies(supabase, replyIds);
+        return { ...reply, nestedReplyCount: nestedCount };
+      }));
+
+      setReplies(prev => ({ ...prev, [commentId]: repliesWithCounts }));
     } catch (error) {
       console.error('Error loading replies:', error);
     }
@@ -470,6 +526,13 @@ const Home = () => {
     setNewReply(prev => ({ ...prev, [commentId]: '' }));
     setShowReplies(prev => ({ ...prev, [commentId]: true }));
 
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return { ...p, comments_count: (p.comments_count || 0) + 1 };
+      }
+      return p;
+    }));
+
     setPostingReply(prev => ({ ...prev, [commentId]: true }));
     
     try {
@@ -485,6 +548,12 @@ const Home = () => {
       setReplies(prev => ({
         ...prev,
         [commentId]: (prev[commentId] || []).filter(r => r.id !== tempId)
+      }));
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          return { ...p, comments_count: Math.max(0, (p.comments_count || 1) - 1) };
+        }
+        return p;
       }));
     } finally {
       setPostingReply(prev => ({ ...prev, [commentId]: false }));
@@ -562,6 +631,10 @@ const Home = () => {
       await supabase.from('comment_replies').delete().eq('comment_id', commentId);
       await supabase.from('post_comments').delete().eq('id', commentId);
 
+      const commentIds = [commentId];
+      const nestedCount = await countAllReplies(supabase, commentIds);
+      const totalToSubtract = 1 + nestedCount;
+
       setComments(prev => ({
         ...prev,
         [postId]: (prev[postId] || []).filter(c => c.id !== commentId)
@@ -569,7 +642,7 @@ const Home = () => {
       
       setPosts(prev => prev.map(p => {
         if (p.id === postId) {
-          return { ...p, comments_count: Math.max(0, (p.comments_count || 1) - 1) };
+          return { ...p, comments_count: Math.max(0, (p.comments_count || 0) - totalToSubtract) };
         }
         return p;
       }));
@@ -671,7 +744,6 @@ const Home = () => {
     return date.toLocaleDateString();
   };
 
-  // Get user avatar from localStorage
   const avatarUrl = localStorage.getItem('navbar_avatarUrl') || "";
   const userName = localStorage.getItem('navbar_userName') || "User";
 
@@ -681,7 +753,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Mobile Header - Only shows on small screens */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border lg:hidden">
         <div className="px-4 py-3 flex items-center justify-between">
           <h1 className="text-lg font-bold text-white">Home</h1>
@@ -700,12 +771,8 @@ const Home = () => {
         </div>
       </header>
 
-
-
-<div className="container mx-auto px-4 md:px-6 py-4 md:py-6 max-w-2xl mx-auto">
-        {/* Create Post Panel - Glass Panel */}
+      <div className="container mx-auto px-4 md:px-6 py-4 md:py-6 max-w-2xl mx-auto">
         <div className="mb-4 p-3 rounded-lg" style={{ background: 'linear-gradient(to bottom, #2b2b2b 0%, #1e1e1e 100%)' }}>
-{/* Input Area */}
           <div className="flex items-center gap-2">
             <div className="flex-1 border-b" style={{ borderColor: 'rgba(245, 245, 230, 0.2)' }}>
               <Textarea
@@ -717,7 +784,6 @@ const Home = () => {
               />
             </div>
 
-            {/* Anonymous Toggle with Eye Icon - Dark Green */}
             <div className="flex items-center px-2">
               <button
                 onClick={() => setIsAnonymous(!isAnonymous)}
@@ -725,14 +791,13 @@ const Home = () => {
                 style={{ backgroundColor: '#006600' }}
               >
                 {isAnonymous ? (
-                  <Eye className="w-4 h-4 text-white" />
-                ) : (
                   <EyeOff className="w-4 h-4 text-white" />
+                ) : (
+                  <Eye className="w-4 h-4 text-white" />
                 )}
               </button>
             </div>
             
-            {/* Post Button - Blue with White Text */}
             <button 
               onClick={handleCreatePost}
               disabled={!newPostContent.trim() || posting}
@@ -747,7 +812,6 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Posts Feed */}
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -785,18 +849,17 @@ const Home = () => {
                 transition={{ delay: index * 0.03 }}
               >
                 <Card className="p-4 bg-gradient-to-b from-[#1A221F]/80 to-[#161A18]/80 border border-white/5 backdrop-blur-sm">
-                  {/* Post Header */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div 
-                        className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/30 to-[#972837]/20 flex items-center justify-center border border-primary/20 cursor-pointer hover:scale-105 transition-transform"
-                        onClick={() => showProfile('Anonymous')}
+                        className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-[#972837]/20 flex items-center justify-center border border-primary/20 cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => showProfile(post.is_anonymous ? 'Anonymous' : post.user_name)}
                       >
-                        <User className="w-4 h-4 text-primary" />
+                        <User className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <span className="font-medium text-sm text-white">Anonymous</span>
-                        <span className="text-[10px] text-gray-500 ml-2">· {formatTime(post.created_at)}</span>
+                        <span className="font-medium text-base text-white">{post.is_anonymous ? 'Anonymous' : (post.user_name || 'User')}</span>
+                        <span className="text-xs text-gray-500 ml-2">· {formatTime(post.created_at)}</span>
                       </div>
                     </div>
                     <div className="relative menu-container">
@@ -829,7 +892,6 @@ const Home = () => {
                     </div>
                   </div>
 
-                  {/* Post Content - Edit Mode */}
                   {editingPostId === post.id ? (
                     <div className="mb-3">
                       <textarea
@@ -854,10 +916,9 @@ const Home = () => {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap mb-3 leading-relaxed text-gray-200">{post.content}</p>
+                    <p className="text-base whitespace-pre-wrap mb-3 leading-relaxed text-gray-200">{post.content}</p>
                   )}
 
-                  {/* Actions */}
                   <div className="flex items-center gap-4 pt-2 border-t border-white/5">
                     <button
                       onClick={() => handleLike(post.id)}
@@ -879,7 +940,6 @@ const Home = () => {
                     </button>
                   </div>
 
-                  {/* Comments Section */}
                   <AnimatePresence>
                     {showComments[post.id] && (
                       <motion.div
@@ -888,7 +948,6 @@ const Home = () => {
                         exit={{ height: 0, opacity: 0 }}
                         className="mt-3 pt-3 border-t border-white/5 overflow-hidden"
                       >
-                        {/* Comment Input - Dark Theme */}
                         <div className="flex gap-2 mb-3">
                           <input
                             type="text"
@@ -910,45 +969,45 @@ const Home = () => {
                           </Button>
                         </div>
 
-                        {/* Comments List */}
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {(comments[post.id] || []).map(comment => (
-                            <div key={comment.id} className="bg-white/5 rounded-lg p-2.5">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary/20 to-[#972837]/10 flex items-center justify-center shrink-0">
-                                    <User className="w-3 h-3 text-primary" />
-                                  </div>
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className={`text-xs font-bold truncate ${comment.user_name === 'Anonymous' ? 'text-red-500' : ''}`} style={{ color: comment.user_name === 'Anonymous' ? '#ef4444' : '#F5F5E6' }}>{comment.user_name}</span>
-                                    <span className="text-xs text-gray-200 truncate">{comment.content}</span>
-                                  </div>
+                            <div key={comment.id} className="bg-white/5 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/20 to-[#972837]/10 flex items-center justify-center shrink-0">
+                                  <User className="w-3.5 h-3.5 text-primary" />
+                                </div>
+                                <span className={`text-base font-bold truncate ${comment.user_name === 'Anonymous' ? 'text-red-500' : ''}`} style={{ color: comment.user_name === 'Anonymous' ? '#ef4444' : '#F5F5E6' }}>{comment.user_name}</span>
+                              </div>
+                              
+                              <div className="flex items-start justify-between gap-2 pl-9">
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-base text-gray-200">{comment.content}</span>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <span className="text-[10px]" style={{ color: 'rgba(245, 245, 230, 0.4)' }}>{formatTime(comment.created_at)}</span>
+                                  <span className="text-xs" style={{ color: 'rgba(245, 245, 230, 0.4)' }}>{formatTime(comment.created_at)}</span>
                                   <div className="relative comment-menu-container">
                                     <button
                                       onClick={() => setOpenCommentMenuId(openCommentMenuId === comment.id ? null : comment.id)}
-                                      className="p-1 hover:bg-white/10 rounded text-gray-500 transition-colors"
+                                      className="p-1.5 hover:bg-white/10 rounded text-gray-400 transition-colors"
                                     >
-                                      <MoreHorizontal className="w-3 h-3" />
+                                      <MoreHorizontal className="w-4 h-4" />
                                     </button>
                                     {openCommentMenuId === comment.id && (
-                                      <div className="absolute right-0 top-5 bg-[#1A221F] border border-white/10 rounded-lg shadow-xl z-10 py-1 min-w-[100px]">
+                                      <div className="absolute right-0 top-8 bg-[#1A221F] border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[120px]">
                                         {(currentUserId === post.user_id || currentUserId === comment.user_id) && (
                                           <>
                                             <button
                                               onClick={() => handleEditComment(comment.id, comment.content)}
-                                              className="w-full px-3 py-1.5 text-left text-gray-300 hover:bg-white/10 flex items-center gap-2 text-xs"
+                                              className="w-full px-4 py-2.5 text-left text-gray-300 hover:bg-white/10 flex items-center gap-2 text-base"
                                             >
-                                              <Pencil className="w-3 h-3" />
+                                              <Pencil className="w-4 h-4" />
                                               Edit
                                             </button>
                                             <button
                                               onClick={() => handleDeleteComment(post.id, comment.id)}
-                                              className="w-full px-3 py-1.5 text-left text-red-400 hover:bg-white/10 flex items-center gap-2 text-xs"
+                                              className="w-full px-4 py-2.5 text-left text-red-400 hover:bg-white/10 flex items-center gap-2 text-base"
                                             >
-                                              <Trash2 className="w-3 h-3" />
+                                              <Trash2 className="w-4 h-4" />
                                               Delete
                                             </button>
                                           </>
@@ -959,25 +1018,24 @@ const Home = () => {
                                 </div>
                               </div>
                               
-                              {/* Comment Content - Edit Mode */}
                               {editingCommentId === comment.id ? (
-                                <div className="mt-1 ml-7">
+                                <div className="mt-2 ml-9">
                                   <textarea
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    className="w-full bg-white/5 rounded-lg p-2 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                                    rows={2}
+                                    className="w-full bg-white/5 rounded-lg p-3 text-white text-base resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                                    rows={3}
                                   />
-                                  <div className="flex gap-2 mt-1">
+                                  <div className="flex gap-2 mt-2">
                                     <button
                                       onClick={() => saveCommentEdit(post.id, comment.id)}
-                                      className="px-3 py-1 bg-primary text-white rounded text-xs"
+                                      className="px-4 py-2 bg-primary text-white rounded text-base"
                                     >
                                       Save
                                     </button>
                                     <button
                                       onClick={cancelCommentEdit}
-                                      className="px-3 py-1 bg-white/10 text-gray-300 rounded text-xs"
+                                      className="px-4 py-2 bg-white/10 text-gray-300 rounded text-base"
                                     >
                                       Cancel
                                     </button>
@@ -985,56 +1043,94 @@ const Home = () => {
                                 </div>
                               ) : null}
                               
-                              {/* Comment Actions */}
-                              <div className="flex items-center gap-3 mt-1.5 pl-7">
+                              <div className="flex items-center gap-4 mt-2 pl-9">
                                 <button 
                                   onClick={() => handleCommentLike(comment.id)}
-                                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-400"
+                                  className="flex items-center gap-1.5 text-base text-gray-500 hover:text-red-400"
                                 >
-                                  <Heart className={cn("w-3.5 h-3.5", (commentLikes[comment.id]?.isLiked) && "fill-red-400 text-red-400")} />
+                                  <Heart className={cn("w-4 h-4", (commentLikes[comment.id]?.isLiked) && "fill-red-400 text-red-400")} />
                                   <span>{commentLikes[comment.id]?.count || 0}</span>
                                 </button>
                                 <button 
                                   onClick={() => toggleReplies(comment.id)}
-                                  className="text-xs text-gray-500 hover:text-white"
+                                  className="text-base text-gray-500 hover:text-white"
                                 >
                                   Reply
                                 </button>
                               </div>
+
+                              {(replyCounts[comment.id] || 0) > 0 && (
+                                <button 
+                                  onClick={() => toggleReplies(comment.id)}
+                                  className="ml-9 mt-2 flex items-center gap-1.5 text-base text-primary hover:text-primary/80 transition-colors"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                  <span>
+                                    {showReplies[comment.id] ? 'Hide' : 'View'} {replyCounts[comment.id]} {replyCounts[comment.id] === 1 ? 'reply' : 'replies'}
+                                  </span>
+                                </button>
+                              )}
                               
-                              {/* Reply Input */}
                               {showReplies[comment.id] && (
-                                <div className="mt-2 pl-4 border-l border-white/10">
-                                  <div className="flex gap-1.5 mb-2">
+                                <div className="mt-3 pl-5 border-l border-white/10">
+                                  <div className="flex gap-2 mb-3">
                                     <input
                                       type="text"
                                       value={newReply[comment.id] || ''}
                                       onChange={(e) => setNewReply(prev => ({ ...prev, [comment.id]: e.target.value }))}
                                       placeholder="Write a reply..."
-                                      className="flex-1 bg-white/5 rounded-full px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary text-white placeholder:text-gray-500"
+                                      className="flex-1 bg-white/5 rounded-full px-4 py-2 text-base focus:outline-none focus:ring-1 focus:ring-primary text-white placeholder:text-gray-500"
                                       onKeyDown={(e) => e.key === 'Enter' && handleReply(post.id, comment.id)}
                                     />
                                     <button
                                       onClick={() => handleReply(post.id, comment.id)}
                                       disabled={!newReply[comment.id]?.trim() || postingReply[comment.id]}
-                                      className="p-1.5 text-gray-400 hover:text-primary"
+                                      className="p-2 text-gray-400 hover:text-primary"
                                     >
-                                      <Send className="w-3.5 h-3.5" />
+                                      <Send className="w-4 h-4" />
                                     </button>
                                   </div>
                                   
-                                  {/* Replies List */}
-                                  <div className="space-y-1.5">
+                                  <div className="space-y-2">
                                     {(replies[comment.id] || []).map(reply => (
-                                      <div key={reply.id} className="bg-white/5 rounded p-1.5">
-                                        <div className="flex items-center gap-1 mb-0.5">
-                                          <div className="w-5 h-5 rounded bg-gradient-to-br from-primary/20 to-[#972837]/10 flex items-center justify-center">
-                                            <User className="w-2.5 h-2.5 text-primary" />
+                                      <div key={reply.id} className="bg-white/5 rounded-lg p-3">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                          <div className="w-6 h-6 rounded bg-gradient-to-br from-primary/20 to-[#972837]/10 flex items-center justify-center">
+                                            <User className="w-3 h-3 text-primary" />
                                           </div>
-                                          <span className="text-xs font-medium text-[#972837]">Anonymous</span>
-                                          <span className="text-[8px] text-gray-500">{formatTime(reply.created_at)}</span>
+                                          <span className="text-base font-medium text-[#972837]">Anonymous</span>
+                                          <span className="text-xs text-gray-500">{formatTime(reply.created_at)}</span>
                                         </div>
-                                        <p className="text-xs text-gray-200 pl-6">{reply.content}</p>
+                                        <p className="text-base text-gray-200 pl-8">{reply.content}</p>
+                                        
+                                        {(reply as any).nestedReplyCount > 0 && (
+                                          <button 
+                                            onClick={() => toggleReplies(reply.id)}
+                                            className="ml-8 mt-2 flex items-center gap-1.5 text-base text-primary hover:text-primary/80"
+                                          >
+                                            <MessageCircle className="w-4 h-4" />
+                                            <span>
+                                              {showReplies[reply.id] ? 'Hide' : 'View'} {(reply as any).nestedReplyCount} {(reply as any).nestedReplyCount === 1 ? 'reply' : 'replies'}
+                                            </span>
+                                          </button>
+                                        )}
+                                        
+                                        {showReplies[reply.id] && replies[reply.id] && (replies[reply.id] || []).length > 0 && (
+                                          <div className="mt-3 pl-5 border-l border-white/10">
+                                            {(replies[reply.id] || []).map((nestedReply: any) => (
+                                              <div key={nestedReply.id} className="bg-white/5 rounded-lg p-3 mb-2">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <div className="w-5 h-5 rounded bg-gradient-to-br from-primary/20 to-[#972837]/10 flex items-center justify-center">
+                                                    <User className="w-2.5 h-2.5 text-primary" />
+                                                  </div>
+                                                  <span className="text-base font-medium text-[#972837]">Anonymous</span>
+                                                  <span className="text-xs text-gray-500">{formatTime(nestedReply.created_at)}</span>
+                                                </div>
+                                                <p className="text-base text-gray-200 pl-7">{nestedReply.content}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
