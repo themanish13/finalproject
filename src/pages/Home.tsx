@@ -110,22 +110,51 @@ const Home = () => {
     init();
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     if (!currentUserId) return;
 
     const postsChannel = supabase
       .channel('posts-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
-        loadPosts();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+        // Only add if it's a new post from another user, not our own
+        if (payload.new && payload.new.user_id !== currentUserId) {
+          // Add new post to top without full reload
+          loadSinglePost(payload.new.id);
+        }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_likes' }, () => {
-        // Only update like counts locally, don't reload entire page
-        setPosts(prev => prev.map(p => ({ ...p })));
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
+        // Only update the specific post that changed
+        if (payload.new && payload.new.id) {
+          setPosts(prev => prev.map(p => 
+            p.id === payload.new.id ? { ...p, ...payload.new } : p
+          ));
+        }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comments' }, () => {
-        // Don't reload entire page - comments are handled locally with optimistic UI
-        // Just trigger a lightweight refresh
-        setPosts(prev => prev.map(p => ({ ...p })));
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, (payload) => {
+        // Only remove the specific post
+        if (payload.old && payload.old.id) {
+          setPosts(prev => prev.filter(p => p.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'post_likes' }, (payload) => {
+        // Only update like count for the specific post
+        if (payload.new && payload.new.post_id) {
+          setPosts(prev => prev.map(p => 
+            p.id === payload.new.post_id 
+              ? { ...p, likes_count: (p.likes_count || 0) + 1, is_liked: payload.new.user_id === currentUserId }
+              : p
+          ));
+        }
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'post_likes' }, (payload) => {
+        // Only update like count for the specific post
+        if (payload.old && payload.old.post_id) {
+          setPosts(prev => prev.map(p => 
+            p.id === payload.old.post_id 
+              ? { ...p, likes_count: Math.max(0, (p.likes_count || 1) - 1), is_liked: false }
+              : p
+          ));
+        }
       })
       .subscribe();
 
@@ -245,6 +274,74 @@ useEffect(() => {
       setLoading(false);
     }
   }, [currentUserId]);
+
+  // Load a single post (for realtime updates without full reload)
+  const loadSinglePost = async (postId: string) => {
+    try {
+      const { data: post } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
+
+      if (!post) return;
+
+      const { count: likesCount } = await supabase
+        .from('post_likes')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('post_id', post.id);
+
+      const { count: directCommentsCount } = await supabase
+        .from('post_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('post_id', post.id);
+
+      const { data: commentData } = await supabase
+        .from('post_comments')
+        .select('id')
+        .eq('post_id', post.id);
+
+      const commentIds = commentData?.map(c => c.id) || [];
+      const totalRepliesCount = await countAllReplies(supabase, commentIds);
+      const commentsCount = (directCommentsCount || 0) + totalRepliesCount;
+
+      let isLiked = false;
+      let userName = 'User';
+
+      if (currentUserId) {
+        const { data: likeData } = await supabase
+          .from('post_likes')
+          .select('id')
+          .eq('post_id', post.id)
+          .eq('user_id', currentUserId)
+          .single();
+        isLiked = !!likeData;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', post.user_id)
+        .single();
+
+      if (profile?.name) {
+        userName = profile.name;
+      }
+
+      const postWithCounts = {
+        ...post,
+        likes_count: likesCount || 0,
+        comments_count: commentsCount,
+        is_liked: isLiked,
+        user_name: userName,
+      };
+
+      // Add to top of posts
+      setPosts(prev => [postWithCounts, ...prev]);
+    } catch (error) {
+      console.error('Error loading single post:', error);
+    }
+  };
 
   const loadComments = async (postId: string) => {
     try {
