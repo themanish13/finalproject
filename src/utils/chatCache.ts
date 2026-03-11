@@ -570,6 +570,55 @@ export const getOfflineMessageQueue = (): Array<{
 };
 
 /**
+ * Update a specific chat's preview in the cached chat list
+ * This is called when sending a message to instantly update the preview
+ * without waiting for the full chat list to refresh
+ */
+export const updateChatPreview = async (
+  chatId: string, 
+  lastMessage: string, 
+  lastMessageTime: string,
+  lastMessageSender: 'me' | 'them'
+): Promise<void> => {
+  try {
+    // Get current cached chat list
+    const cached = await getFromStore('chatList', 'latest');
+    
+    if (!cached || !cached.chats) return;
+    
+    // Find and update the specific chat
+    const updatedChats = cached.chats.map((chat: ChatListItem) => {
+      if (chat.id === chatId) {
+        return {
+          ...chat,
+          lastMessage,
+          lastMessageTime,
+          lastMessageSender,
+        };
+      }
+      return chat;
+    });
+    
+    // Sort by last message time (most recent first)
+    updatedChats.sort((a: ChatListItem, b: ChatListItem) => {
+      const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+      const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+      return timeB - timeA;
+    });
+    
+    // Save updated chat list
+    const cacheData: CachedChatList = {
+      chats: updatedChats,
+      timestamp: Date.now(),
+    };
+    
+    await putToStore('chatList', cacheData);
+  } catch (error) {
+    console.error('Error updating chat preview:', error);
+  }
+};
+
+/**
  * Clear offline message queue (after successfully sending)
  */
 export const clearOfflineQueue = (): void => {

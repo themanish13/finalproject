@@ -37,6 +37,7 @@ import {
   saveDraft,
   loadDraft,
   clearDraft,
+  updateChatPreview,
 } from "@/utils/chatCache";
 
 // Skeleton components
@@ -624,6 +625,11 @@ const Chat = () => {
       
       // Confirm message with real data
       confirmMessage(tempId, data.id, data.created_at, data.status || 'sent');
+      
+      // Instantly update chat list preview (partial update - no reload!)
+      const messagePreview = messageContent?.trim() || `[${mediaType || 'media'}]`;
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      await updateChatPreview(matchId, messagePreview, timeStr, 'me');
       
       setNewMessage("");
       setReplyToMessage(null);
