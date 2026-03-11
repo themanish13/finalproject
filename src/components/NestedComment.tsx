@@ -234,7 +234,7 @@ const NestedComment = memo(({
   const canModify = isPostAuthor || isCommentAuthor;
 
   return (
-    <div className={cn("relative", depth > 0 && "ml-4 pl-3 border-l border-white/10")}>
+    <div className={cn("relative overflow-visible", depth > 0 && "ml-4 pl-3 border-l border-white/10")}>
       {/* Comment Content */}
       <div className="bg-white/5 rounded-lg p-2.5">
         <div className="flex items-start justify-between gap-2">
@@ -290,27 +290,27 @@ const NestedComment = memo(({
           
           {/* Menu Button */}
           {canModify && (
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 overflow-visible">
               <button
                 onClick={() => setOpenMenuId(openMenuId === commentId ? null : commentId)}
-                className="p-1 hover:bg-white/10 rounded text-gray-500 transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded text-gray-500 transition-colors"
               >
-                <MoreHorizontal className="w-3 h-3" />
+                <MoreHorizontal className="w-4 h-4" />
               </button>
               {openMenuId === commentId && (
-                <div className="absolute right-0 top-5 bg-[#1A221F] border border-white/10 rounded-lg shadow-xl z-10 py-1 min-w-[100px]">
+                <div className="absolute right-0 top-8 bg-[#1A221F] border border-white/10 rounded-lg shadow-xl z-[100] py-1 min-w-[120px] overflow-visible">
                   <button
                     onClick={handleEdit}
-                    className="w-full px-3 py-1.5 text-left text-gray-300 hover:bg-white/10 flex items-center gap-2 text-xs"
+                    className="w-full px-4 py-2.5 text-left text-gray-300 hover:bg-white/10 flex items-center gap-3 text-sm"
                   >
-                    <Pencil className="w-3 h-3" />
+                    <Pencil className="w-4 h-4" />
                     Edit
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="w-full px-3 py-1.5 text-left text-red-400 hover:bg-white/10 flex items-center gap-2 text-xs"
+                    className="w-full px-4 py-2.5 text-left text-red-400 hover:bg-white/10 flex items-center gap-3 text-sm"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-4 h-4" />
                     Delete
                   </button>
                 </div>

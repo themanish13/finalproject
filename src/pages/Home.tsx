@@ -65,8 +65,8 @@ const Home = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>('');
   const [newPostContent, setNewPostContent] = useState("");
-  const [posting, setPosting] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [newlyCreatedPosts, setNewlyCreatedPosts] = useState<Set<string>>(new Set());
   
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [showComments, setShowComments] = useState<Record<string, boolean>>({});
@@ -334,27 +334,65 @@ useEffect(() => {
       return;
     }
 
-    setPosting(true);
+    const tempId = `temp-${Date.now()}`;
+    const tempPost: Post = {
+      id: tempId,
+      user_id: currentUserId,
+      content: newPostContent.trim(),
+      created_at: new Date().toISOString(),
+      likes_count: 0,
+      comments_count: 0,
+      is_liked: false,
+      is_anonymous: isAnonymous,
+      user_name: isAnonymous ? 'Anonymous' : currentUserName || 'User',
+    };
+
+    // Optimistic UI: Add post immediately without waiting for server
+    setPosts(prev => [tempPost, ...prev]);
+    setNewlyCreatedPosts(prev => new Set([...prev, tempId]));
+    setNewPostContent("");
+    setIsAnonymous(false);
+
+    // Remove animation flag after a short delay
+    setTimeout(() => {
+      setNewlyCreatedPosts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(tempId);
+        return newSet;
+      });
+    }, 500);
+
+    // Also clear the input immediately (optimistic)
+    const contentToSubmit = newPostContent.trim();
+    
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('posts')
         .insert({
           user_id: currentUserId,
-          content: newPostContent.trim(),
+          content: contentToSubmit,
           is_anonymous: isAnonymous,
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error('Post error:', error);
+        // Remove temp post on error
+        setPosts(prev => prev.filter(p => p.id !== tempId));
         return;
       }
-      
-      setNewPostContent("");
-      await loadPosts();
+
+      // Replace temp post with real post data
+      if (data) {
+        setPosts(prev => prev.map(p => 
+          p.id === tempId ? { ...p, id: data.id, created_at: data.created_at } : p
+        ));
+      }
     } catch (error) {
       console.error('Error creating post:', error);
-    } finally {
-      setPosting(false);
+      // Remove temp post on error
+      setPosts(prev => prev.filter(p => p.id !== tempId));
     }
   };
 
@@ -800,14 +838,10 @@ useEffect(() => {
             
             <button 
               onClick={handleCreatePost}
-              disabled={!newPostContent.trim() || posting}
-              className="flex items-center justify-center px-4 py-1.5 rounded-md transition-all text-sm font-medium bg-[#0078d4] text-white hover:bg-[#006cbd]"
+              disabled={!newPostContent.trim()}
+              className="flex items-center justify-center px-4 py-1.5 rounded-md transition-all text-sm font-medium bg-[#0078d4] text-white hover:bg-[#006cbd] disabled:opacity-50"
             >
-              {posting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-              ) : (
-                "Post"
-              )}
+              Post
             </button>
           </div>
         </div>
@@ -844,9 +878,9 @@ useEffect(() => {
             {posts.map((post, index) => (
               <motion.div
                 key={post.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
+                initial={ newlyCreatedPosts.has(post.id) ? { opacity: 0, y: -20, scale: 0.95 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.3 }}
               >
                 <Card className="p-4 bg-gradient-to-b from-[#1A221F]/80 to-[#161A18]/80 border border-white/5 backdrop-blur-sm">
                   <div className="flex items-center justify-between mb-2">
@@ -946,7 +980,7 @@ useEffect(() => {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="mt-3 pt-3 border-t border-white/5 overflow-hidden"
+                        className="mt-3 pt-3 border-t border-white/5 overflow-visible"
                       >
                         <div className="flex gap-2 mb-3">
                           <input
@@ -1072,7 +1106,7 @@ useEffect(() => {
                               )}
                               
                               {showReplies[comment.id] && (
-                                <div className="mt-3 pl-5 border-l border-white/10">
+                                <div className="mt-3 pl-5 border-l border-white/10 overflow-visible">
                                   <div className="flex gap-2 mb-3">
                                     <input
                                       type="text"
@@ -1116,7 +1150,7 @@ useEffect(() => {
                                         )}
                                         
                                         {showReplies[reply.id] && replies[reply.id] && (replies[reply.id] || []).length > 0 && (
-                                          <div className="mt-3 pl-5 border-l border-white/10">
+                                          <div className="mt-3 pl-5 border-l border-white/10 overflow-visible">
                                             {(replies[reply.id] || []).map((nestedReply: any) => (
                                               <div key={nestedReply.id} className="bg-white/5 rounded-lg p-3 mb-2">
                                                 <div className="flex items-center gap-2 mb-1">
